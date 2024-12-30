@@ -1,10 +1,10 @@
 package vm
 
-//       |			   32bit         	  |
-// iABC: |B 9bit|C 9bit|A 8bit|Opcode 6bit|
-// iABx: |Bx	  18bit|A 8bit|Opcode 6bit|
-//iAsBx: |sBx     18bit|A 8bit|Opcode 6bit|
-//  iAx: |Ax             26bit|Opcode 6bit|
+//       		  |			                             32bit										  |
+//   iABC: |B 			9bit|C 		9bit|A	 	 8bit|Opcode 	 6bit|
+//   iABx: |Bx						  18bit|A 		8bit|Opcode 	6bit|
+//iAsBx: |sBx     				  18bit|A 		8bit|Opcode 	6bit|
+//    iAx: |Ax		             	 					26bit|Opcode	 6bit|
 
 type Instruction uint32
 

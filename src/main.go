@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"nskbz.cn/lua/api"
 	"nskbz.cn/lua/binchunk"
 	"nskbz.cn/lua/vm"
 )
@@ -148,4 +149,9 @@ func upvalueName(proto *binchunk.Prototype, index int) string {
 		return proto.UpvalueNames[index]
 	}
 	return "-"
+}
+
+func printStack(ls api.LuaState) {
+	top := ls.GetTop()
+	fmt.Println(top)
 }
