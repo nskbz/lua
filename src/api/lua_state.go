@@ -1,6 +1,8 @@
 package api
 
-type LuaValueType int
+type LuaValueType int //Lua的数据类型
+type ArithOp int      //算术运算与位运算
+type CompareOp int    //比较运算
 
 /*		Stack					Index
 *		|			nil			 |	  7 		  -							  -
@@ -25,8 +27,8 @@ type LuaState interface {
 	PushValue(idx int)       //将指定索引的val压入栈顶
 	Replace(idx int)         //将栈顶val弹出并替换指定索引位置的val
 	Rotate(idx, n int)       //将[idx,top]的val进行轮转；n>0向栈顶轮转，n<0向栈底轮转
-	Insert(idx int)          //将栈顶val弹出并插入指定索引
-	Remove(idx int)          //删除指定索引并将后续的val依次顺移填充
+	Insert(idx int)          //将栈顶val弹出并插入到指定索引，整个过程栈长度不变
+	Remove(idx int)          //删除指定索引并将后续的val依次顺移填充，栈长度-1
 	/*
 	*	进栈操作
 	 */
@@ -57,4 +59,11 @@ type LuaState interface {
 	ToFloatX(idx int) (float64, bool)
 	ToString(idx int) string
 	ToStringX(idx int) (string, bool)
+	/*
+	*运算操作
+	 */
+	Arith(op ArithOp)
+	Compare(idx1, idx2 int, op CompareOp) bool
+	Len(idx int)  //将指定索引的val的长度压入栈顶
+	Concat(n int) //从栈顶弹出n个val进行字符串拼接，结果压入栈
 }

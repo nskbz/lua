@@ -151,7 +151,20 @@ func upvalueName(proto *binchunk.Prototype, index int) string {
 	return "-"
 }
 
-func printStack(ls api.LuaState) {
-	top := ls.GetTop()
-	fmt.Println(top)
+func printStack(s api.LuaState) {
+	top := s.GetTop()
+	for i := 1; i <= top; i++ {
+		tp := s.Type(i)
+		switch tp {
+		case api.LUAVALUE_BOOLEAN:
+			fmt.Printf("[%t]", s.ToBoolean(i))
+		case api.LUAVALUE_NUMBER:
+			fmt.Printf("[%g]", s.ToFloat(i))
+		case api.LUAVALUE_STRING:
+			fmt.Printf("[%q]", s.ToString(i))
+		default:
+			fmt.Printf("[%s]", s.TypeName(tp))
+		}
+	}
+	fmt.Println()
 }

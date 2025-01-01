@@ -2,8 +2,10 @@ package state
 
 import (
 	"fmt"
+	"strings"
 
 	"nskbz.cn/lua/api"
+	"nskbz.cn/lua/number"
 )
 
 const DefaultStackSize = 20
@@ -96,7 +98,7 @@ func (s *luaState) Rotate(idx, n int) {
 		panic("can't rotate beyond of top")
 	}
 	size := s.stack.top - absidx + 1
-	times := absInt(n)
+	times := number.AbsInt(n)
 	vals := make([]luaValue, size)
 	if n < 0 {
 		for i := 0; i < size; i++ {
@@ -238,8 +240,7 @@ func (s *luaState) ToInteger(idx int) int64 {
 func (s *luaState) ToIntegerX(idx int) (int64, bool) {
 	absidx := s.AbsIndex(idx)
 	val := s.stack.get(absidx)
-	i, ok := val.(int64)
-	return i, ok
+	return convertToInteger(val)
 }
 
 func (s *luaState) ToFloat(idx int) float64 {
@@ -250,13 +251,7 @@ func (s *luaState) ToFloat(idx int) float64 {
 func (s *luaState) ToFloatX(idx int) (float64, bool) {
 	absidx := s.AbsIndex(idx)
 	val := s.stack.get(absidx)
-	switch v := val.(type) {
-	case float64:
-		return v, true
-	case int64:
-		return float64(v), true
-	}
-	return 0, false
+	return convertToFloat(val)
 }
 
 func (s *luaState) ToString(idx int) string {
@@ -267,13 +262,71 @@ func (s *luaState) ToString(idx int) string {
 func (s *luaState) ToStringX(idx int) (string, bool) {
 	absidx := s.AbsIndex(idx)
 	val := s.stack.get(absidx)
-	switch v := val.(type) {
-	case string:
-		return v, true
-	case float64, int64:
-		sv := fmt.Sprintf("%v", v)
-		s.stack.set(absidx, sv)
-		return sv, true
+	return convertToString(val)
+}
+
+/*
+*	运算操作
+ */
+func (s *luaState) Arith(op api.ArithOp) {
+	operation, ok := arith_operation[op]
+	if !ok {
+		panic(fmt.Sprintf("no supported arith for %d", op))
 	}
-	return "", false
+	var result luaValue
+	b := s.stack.pop()
+	//区分一元运算与二元运算
+	if op >= api.ArithOp_OPPOSITE {
+		result = doUnitaryArith(b, operation)
+	} else {
+		a := s.stack.pop()
+		result = doDualArith(a, b, operation)
+	}
+	if result == nil {
+		panic(fmt.Sprintf("Arith error =>%d", op))
+	}
+	s.stack.push(result)
+}
+
+func (s *luaState) Compare(idx1, idx2 int, op api.CompareOp) bool {
+	a := s.stack.get(s.AbsIndex(idx1))
+	b := s.stack.get(s.AbsIndex(idx2))
+	switch op {
+	case api.CompareOp_EQ:
+		return doEq(a, b)
+	case api.CompareOp_LT:
+		return doLt(a, b)
+	case api.CompareOp_LE:
+		return doLe(a, b)
+	}
+	panic(fmt.Sprintf("no supported compare for %d", op))
+}
+
+func (s *luaState) Len(idx int) {
+	absidx := s.AbsIndex(idx)
+	val := s.stack.get(absidx)
+	switch x := val.(type) {
+	case string:
+		s.stack.push(int64(len(x)))
+	default:
+		panic(fmt.Sprintf("no supported length for %v", x))
+	}
+}
+
+func (s *luaState) Concat(n int) {
+	if n < 0 {
+		return
+	}
+	str := strings.Builder{}
+	from := s.AbsIndex(-(n - 1))
+	s.stack.reverse(from, s.stack.top)
+	for i := 0; i < n; i++ {
+		val := s.stack.pop()
+		s, ok := convertToString(val)
+		if !ok {
+			panic("error for concat")
+		}
+		str.WriteString(s)
+	}
+	s.stack.push(str.String())
 }
