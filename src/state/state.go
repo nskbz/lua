@@ -14,9 +14,13 @@ type luaState struct {
 	stack *luaStack
 }
 
-func New() *luaState {
+func NewState(stackSize int) *luaState {
+	size := DefaultStackSize
+	if stackSize < 500 && stackSize > 0 {
+		size = stackSize
+	}
 	return &luaState{
-		stack: newLuaStack(DefaultStackSize),
+		stack: newLuaStack(size),
 	}
 }
 
@@ -89,6 +93,10 @@ func (s *luaState) PushValue(idx int) {
 
 func (s *luaState) Replace(idx int) {
 	absidx := s.AbsIndex(idx)
+	top := s.stack.top
+	if top == idx {
+		return
+	}
 	s.stack.set(absidx, s.stack.pop())
 }
 
@@ -285,7 +293,7 @@ func (s *luaState) Arith(op api.ArithOp) {
 	if result == nil {
 		panic(fmt.Sprintf("Arith error =>%d", op))
 	}
-	s.stack.push(result)
+	s.stack.push(result) //结果压入栈
 }
 
 func (s *luaState) Compare(idx1, idx2 int, op api.CompareOp) bool {

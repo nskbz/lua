@@ -63,7 +63,7 @@ type LuaState interface {
 	*运算操作
 	 */
 	Arith(op ArithOp)
-	Compare(idx1, idx2 int, op CompareOp) bool
-	Len(idx int)  //将指定索引的val的长度压入栈顶
-	Concat(n int) //从栈顶弹出n个val进行字符串拼接，结果压入栈
+	Compare(idx1, idx2 int, op CompareOp) bool //对两索引的val进行比较，不改变栈结构
+	Len(idx int)                               //将指定索引的val的长度压入栈顶
+	Concat(n int)                              //从栈顶弹出n个val进行字符串拼接，结果压入栈
 }

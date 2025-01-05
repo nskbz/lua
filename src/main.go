@@ -8,7 +8,8 @@ import (
 
 	"nskbz.cn/lua/api"
 	"nskbz.cn/lua/binchunk"
-	"nskbz.cn/lua/vm"
+	"nskbz.cn/lua/instruction"
+	"nskbz.cn/lua/state"
 )
 
 func main() {
@@ -23,7 +24,23 @@ func main() {
 		return
 	}
 	proto := binchunk.Undump(datas)
-	list(proto)
+	luaLoop(proto)
+}
+
+func luaLoop(proto *binchunk.Prototype) {
+	stackSize := proto.MaxStackSize
+	vm := state.NewVM(int(stackSize), proto)
+	vm.SetTop(6)
+	for {
+		pc := vm.PC()
+		i := instruction.Instruction(vm.Fetch())
+		if i.InstructionName() == "RETURN  " {
+			break
+		}
+		i.Execute(vm)
+		fmt.Printf("[%02d] %s ", pc+1, i.InstructionName())
+		printStack(vm)
+	}
 }
 
 func list(proto *binchunk.Prototype) {
@@ -66,42 +83,38 @@ func printCode(proto *binchunk.Prototype) {
 
 func codeInfo(code uint32) string {
 	build := strings.Builder{}
-	i := vm.Instruction(code)
-	op := i.Create()
+	i := instruction.Instruction(code)
 	switch i.OpMode() {
-	case vm.IABC:
-		abc := op.(vm.ABC)
-		build.WriteString(fmt.Sprintf("%s %d", abc.InstructionName(), abc.A()))
-		if abc.UsedArgB() {
-			b := abc.B()
+	case instruction.IABC:
+		a, b, c := i.ABC()
+		build.WriteString(fmt.Sprintf("%s %d", i.InstructionName(), a))
+		if i.ModArgB(instruction.ArgU) {
 			if b > 0xFF {
 				b = -1 - b&0xFF
 			}
 			build.WriteString(fmt.Sprintf(" %d", b))
 		}
-		if abc.UsedArgC() {
-			c := abc.C()
+		if i.ModArgC(instruction.ArgU) {
 			if c > 0xFF {
 				c = -1 - c&0xFF
 			}
 			build.WriteString(fmt.Sprintf(" %d", c))
 		}
-	case vm.IABx:
-		abx := op.(vm.ABx)
-		build.WriteString(fmt.Sprintf("%s %d", abx.InstructionName(), abx.A()))
-		if abx.UsedArgB() {
-			bx := abx.Bx()
-			if abx.BisArgK() {
+	case instruction.IABx:
+		a, bx := i.ABx()
+		build.WriteString(fmt.Sprintf("%s %d", i.InstructionName(), a))
+		if i.ModArgB(instruction.ArgU) {
+			if i.ModArgB(instruction.ArgK) {
 				bx = -1 - bx
 			}
 			build.WriteString(fmt.Sprintf(" %d", bx))
 		}
-	case vm.IAsBx:
-		asbx := op.(vm.AsBx)
-		build.WriteString(fmt.Sprintf("%s %d %d", asbx.InstructionName(), asbx.A(), asbx.Sbx()))
-	case vm.IAx:
-		ax := op.(vm.Ax)
-		build.WriteString(fmt.Sprintf("%s %d", ax.InstructionName(), -1-ax.Ax()))
+	case instruction.IAsBx:
+		a, sbx := i.AsBx()
+		build.WriteString(fmt.Sprintf("%s %d %d", i.InstructionName(), a, sbx))
+	case instruction.IAx:
+		ax := i.Ax()
+		build.WriteString(fmt.Sprintf("%s %d", i.InstructionName(), -1-ax))
 	}
 	return build.String()
 }

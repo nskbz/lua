@@ -1,5 +1,7 @@
 package state
 
+import "fmt"
+
 //以1为起始索引的lua栈
 //栈顶(top)指向最新的val
 
@@ -36,7 +38,7 @@ func (s *luaStack) expand(n int) {
 
 func (s *luaStack) checkIdx(absidx int) {
 	if absidx <= 0 || absidx > s.top {
-		panic("stack access out of limit!!")
+		panic(fmt.Sprintf("stack access[%d] out of limit[1,%d]!!", absidx, s.top))
 	}
 }
 
