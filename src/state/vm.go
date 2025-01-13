@@ -49,8 +49,10 @@ func (vm *luaVM) GetConst(idx int) {
 
 func (vm *luaVM) GetRK(arg int) {
 	if arg > 0xFF {
+		//最高位不为0表示常量表索引
 		vm.GetConst(arg & 0xFF)
 	} else {
+		//最高位为0表示寄存器索引
 		vm.PushValue(arg + 1)
 	}
 }

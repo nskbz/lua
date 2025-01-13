@@ -62,8 +62,19 @@ type LuaState interface {
 	/*
 	*运算操作
 	 */
-	Arith(op ArithOp)
+	Arith(op ArithOp)                          //进行算术运算
 	Compare(idx1, idx2 int, op CompareOp) bool //对两索引的val进行比较，不改变栈结构
 	Len(idx int)                               //将指定索引的val的长度压入栈顶
 	Concat(n int)                              //从栈顶弹出n个val进行字符串拼接，结果压入栈
+	/*
+	*表相关操作
+	 */
+	NewTable()
+	CreateTable(nArr, nRec int)              //创建table并将其压入栈顶
+	GetTable(idx int) LuaValueType           //获取指定索引table的值类型并将其值压入栈(table=stack[idx])：table[stack[top]]
+	GetField(idx int, k string) LuaValueType //获取指定索引table和指定字符串键的值类型并将其值压入栈：table[k]
+	GetI(idx int, i int64) LuaValueType      //获取指定索引table和指定整数键的值类型并将其值压入栈：table[i]
+	SetTable(idx int)                        //设置指定索引table的键值(table=stack[idx])：table[key]=val (val=stack[top],key=stack[top--])
+	SetField(idx int, k string)              //设置指定索引table和指定字符串键的值：table[k]=val (val=stack[top])
+	SetI(idx int, i int64)                   //设置指定索引table和指定整数键的值：table[i]=val (val=stack[top])
 }

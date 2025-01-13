@@ -61,11 +61,11 @@ var instructions = []opcode{
 	{0, ArgR, ArgU, ArgN, IABC, "LOADNIL ", loadNil},  // R(A), R(A+1), ..., R(A+B) := nil
 	{0, ArgR, ArgU, ArgN, IABC, "GETUPVAL", nil},
 	{0, ArgR, ArgU, ArgK, IABC, "GETTABUP", nil},
-	{0, ArgR, ArgR, ArgK, IABC, "GETTABLE", nil},
+	{0, ArgR, ArgR, ArgRK, IABC, "GETTABLE", getTable}, //R(A) := R(B)[RK(C)]
 	{0, ArgU, ArgK, ArgK, IABC, "SETTABUP", nil},
 	{0, ArgU, ArgU, ArgN, IABC, "SETUPVAL", nil},
-	{0, ArgU, ArgK, ArgK, IABC, "SETTABLE", nil},
-	{0, ArgR, ArgU, ArgU, IABC, "NEWTABLE", nil},
+	{0, ArgU, ArgRK, ArgRK, IABC, "SETTABLE", setTable}, //R(A)[RK(B)] := RK(C)
+	{0, ArgR, ArgU, ArgU, IABC, "NEWTABLE", newTable},   //R(A) := {} (size = B,C)
 	{0, ArgR, ArgR, ArgK, IABC, "SELF    ", nil},
 	{0, ArgR, ArgRK, ArgRK, IABC, "ADD     ", add}, // R(A) := RK(B) + RK(C)
 	{0, ArgR, ArgRK, ArgRK, IABC, "SUB     ", sub},
@@ -97,7 +97,7 @@ var instructions = []opcode{
 	{0, ArgR, ArgU, ArgN, IAsBx, "FORPREP ", forPrep},
 	{0, ArgU, ArgN, ArgU, IABC, "TFORCALL", nil},
 	{0, ArgR, ArgU, ArgN, IAsBx, "TFORLOOP", nil},
-	{0, ArgU, ArgU, ArgU, IABC, "SETLIST ", nil},
+	{0, ArgU, ArgU, ArgU, IABC, "SETLIST ", setList}, // R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
 	{0, ArgR, ArgU, ArgN, IABx, "CLOSURE ", nil},
 	{0, ArgR, ArgU, ArgN, IABC, "VARARG  ", nil},
 	{0, ArgU, ArgU, ArgU, IAx, "EXTRAARG", nil},

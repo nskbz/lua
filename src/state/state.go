@@ -316,6 +316,8 @@ func (s *luaState) Len(idx int) {
 	switch x := val.(type) {
 	case string:
 		s.stack.push(int64(len(x)))
+	case *table:
+		s.stack.push(int64(x.len()))
 	default:
 		panic(fmt.Sprintf("no supported length for %v", x))
 	}
@@ -337,4 +339,76 @@ func (s *luaState) Concat(n int) {
 		str.WriteString(s)
 	}
 	s.stack.push(str.String())
+}
+
+/*
+*表相关操作
+ */
+func (s *luaState) NewTable() {
+	s.CreateTable(0, 0)
+}
+
+func (s *luaState) CreateTable(nArr, nRec int) {
+	table := newTable(nArr, nRec)
+	s.stack.push(table)
+}
+
+func (s *luaState) GetTable(idx int) api.LuaValueType {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	ti := s.stack.pop()
+	return s.getTableVal(t, ti)
+}
+
+func (s *luaState) GetField(idx int, k string) api.LuaValueType {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	return s.getTableVal(t, k)
+}
+
+func (s *luaState) GetI(idx int, i int64) api.LuaValueType {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	return s.getTableVal(t, i)
+}
+
+// 获取t中键k的val的类型，并将val压入栈顶
+func (s *luaState) getTableVal(t luaValue, k luaValue) api.LuaValueType {
+	if api.LUAVALUE_TABLE != typeOf(t) {
+		panic(fmt.Sprintf("type[%d] is not a table", typeOf(t)))
+	}
+	tb := t.(*table)
+	val := tb.get(k)
+	s.stack.push(val)
+	return typeOf(val)
+}
+
+func (s *luaState) SetTable(idx int) {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	val := s.stack.pop()
+	key := s.stack.pop()
+	s.setTableKV(t, key, val)
+}
+
+func (s *luaState) SetField(idx int, k string) {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	val := s.stack.pop()
+	s.setTableKV(t, k, val)
+}
+
+func (s *luaState) SetI(idx int, i int64) {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	val := s.stack.pop()
+	s.setTableKV(t, i, val)
+}
+
+func (s *luaState) setTableKV(t luaValue, k, v luaValue) {
+	if api.LUAVALUE_TABLE != typeOf(t) {
+		panic(fmt.Sprintf("type[%d] is not a table", typeOf(t)))
+	}
+	tb := t.(*table)
+	tb.put(k, v)
 }
