@@ -8,12 +8,18 @@ import "fmt"
 type luaStack struct {
 	slots []luaValue
 	top   int
+
+	prev    *luaStack
+	closure *closure
+	varargs []luaValue
+	pc      int
 }
 
 func newLuaStack(size int) *luaStack {
 	return &luaStack{
 		slots: make([]luaValue, size+1),
 		top:   0,
+		pc:    0,
 	}
 }
 
@@ -62,12 +68,36 @@ func (s *luaStack) pop() luaValue {
 	return topval
 }
 
+// 弹出n个luaval,以切片的形式返回
+func (s *luaStack) popN(n int) []luaValue {
+	vals := make([]luaValue, n)
+	for i := n - 1; i >= 0; i-- {
+		vals[i] = s.pop()
+	}
+	return vals
+}
+
 func (s *luaStack) push(val luaValue) {
 	if s.full() {
 		panic("stack full")
 	}
 	s.top++
 	s.slots[s.top] = val
+}
+
+// 从vals中依次压入n个元素，n<0时表示vals全部压入
+func (s *luaStack) pushN(vals []luaValue, n int) {
+	length := len(vals)
+	if n < 0 {
+		n = length
+	}
+	for i := 0; i < n; i++ {
+		if i < length {
+			s.push(vals[i])
+			continue
+		}
+		s.push(nil)
+	}
 }
 
 func (s *luaStack) reverse(from, to int) {

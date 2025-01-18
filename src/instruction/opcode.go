@@ -66,8 +66,8 @@ var instructions = []opcode{
 	{0, ArgU, ArgU, ArgN, IABC, "SETUPVAL", nil},
 	{0, ArgU, ArgRK, ArgRK, IABC, "SETTABLE", setTable}, //R(A)[RK(B)] := RK(C)
 	{0, ArgR, ArgU, ArgU, IABC, "NEWTABLE", newTable},   //R(A) := {} (size = B,C)
-	{0, ArgR, ArgR, ArgK, IABC, "SELF    ", nil},
-	{0, ArgR, ArgRK, ArgRK, IABC, "ADD     ", add}, // R(A) := RK(B) + RK(C)
+	{0, ArgR, ArgR, ArgK, IABC, "SELF    ", self},       // R(A+1) := R(B); R(A) := R(B)[RK(C)]
+	{0, ArgR, ArgRK, ArgRK, IABC, "ADD     ", add},      // R(A) := RK(B) + RK(C)
 	{0, ArgR, ArgRK, ArgRK, IABC, "SUB     ", sub},
 	{0, ArgR, ArgRK, ArgRK, IABC, "MUL     ", mul},
 	{0, ArgR, ArgRK, ArgRK, IABC, "MOD     ", mod},
@@ -90,15 +90,15 @@ var instructions = []opcode{
 	{1, ArgU, ArgK, ArgK, IABC, "LE      ", le},    // if ((RK(B) <= RK(C)) ~= A) then pc++
 	{1, ArgU, ArgN, ArgU, IABC, "TEST    ", test},
 	{1, ArgR, ArgR, ArgU, IABC, "TESTSET ", testset},
-	{0, ArgR, ArgU, ArgU, IABC, "CALL    ", nil},
-	{0, ArgR, ArgU, ArgU, IABC, "TAILCALL", nil},
-	{0, ArgU, ArgU, ArgN, IABC, "RETURN  ", nil},
+	{0, ArgR, ArgU, ArgU, IABC, "CALL    ", call},      // R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
+	{0, ArgR, ArgU, ArgU, IABC, "TAILCALL", tailcall},  // return R(A)(R(A+1), ... ,R(A+B-1))
+	{0, ArgU, ArgU, ArgN, IABC, "RETURN  ", luaReturn}, // return R(A),...,R(A+B-2)
 	{0, ArgR, ArgU, ArgN, IAsBx, "FORLOOP ", forLoop},
 	{0, ArgR, ArgU, ArgN, IAsBx, "FORPREP ", forPrep},
 	{0, ArgU, ArgN, ArgU, IABC, "TFORCALL", nil},
 	{0, ArgR, ArgU, ArgN, IAsBx, "TFORLOOP", nil},
 	{0, ArgU, ArgU, ArgU, IABC, "SETLIST ", setList}, // R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
-	{0, ArgR, ArgU, ArgN, IABx, "CLOSURE ", nil},
-	{0, ArgR, ArgU, ArgN, IABC, "VARARG  ", nil},
+	{0, ArgR, ArgU, ArgN, IABx, "CLOSURE ", closure}, //R(A) := closure(KPROTO[Bx])
+	{0, ArgR, ArgU, ArgN, IABC, "VARARG  ", vararg},  // R(A), R(A+1), ..., R(A+B-2) = vararg
 	{0, ArgU, ArgU, ArgU, IAx, "EXTRAARG", nil},
 }

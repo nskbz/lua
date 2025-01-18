@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"nskbz.cn/lua/api"
+	"nskbz.cn/lua/binchunk"
+	"nskbz.cn/lua/instruction"
 	"nskbz.cn/lua/number"
 )
 
@@ -14,13 +16,15 @@ type luaState struct {
 	stack *luaStack
 }
 
-func NewState(stackSize int) *luaState {
+func New(stackSize int) api.LuaVM {
 	size := DefaultStackSize
 	if stackSize < 500 && stackSize > 0 {
 		size = stackSize
 	}
+	stack := newLuaStack(size)
+	//stack.top = 6
 	return &luaState{
-		stack: newLuaStack(size),
+		stack: stack,
 	}
 }
 
@@ -411,4 +415,88 @@ func (s *luaState) setTableKV(t luaValue, k, v luaValue) {
 	}
 	tb := t.(*table)
 	tb.put(k, v)
+}
+
+/*
+*	函数调用栈扩展
+*
+* 	函数调用利用单向链表实现，链表头部是目前执行的函数(被调函数)，其prev是主调函数，main函数的prev为nil
+* 	采用链表(prev)可以使return的时候方便找到主调函数
+*	function test()
+*   	print(123)
+*	end
+*
+*	test()
+*
+*	call stack: 	nil<-main	(call main)
+*	call stack: 	nil<-main<-test	(call test)
+*	call stack: 	nil<-main<-test<-print	(call print)
+*	call stack: 	nil<-main<-test	(print return)
+*	call stack: 	nil<-main	(test return)
+*	call stack: 	nil	(means obver)
+ */
+func (s *luaState) pushContext(f *luaStack) {
+	f.prev = s.stack
+	s.stack = f //切换执行函数
+}
+
+func (s *luaState) popContext() {
+	outerCall := s.stack.prev
+	s.stack.prev = nil
+	s.stack = outerCall //切换执行函数
+}
+
+func (s *luaState) Load(chunk []byte, chunckName, mode string) int {
+	proto := binchunk.Undump(chunk)
+	c := newClosure(proto)
+	s.stack.push(c)
+	return 0
+}
+
+func (s *luaState) Call(nArgs, nResults int) {
+	vals := s.stack.popN(nArgs + 1)
+	if c, ok := vals[0].(*closure); !ok {
+		panic(fmt.Sprintf("[%s] isn't closure", typeOf(vals[0]).String()))
+	} else {
+		fmt.Printf("call %s<%d,%d>\n", c.proto.Source,
+			c.proto.LineStart, c.proto.LineEnd)
+	}
+
+	function := vals[0].(*closure)
+	stackSize := int(function.proto.MaxStackSize)
+	numParams := int(function.proto.NumParams)
+	isVararg := function.proto.IsVararg == 1
+
+	//初始化被调函数栈，即创建调用帧
+	stack := newLuaStack(stackSize + 20)
+	stack.closure = function
+	stack.top = stackSize
+	if isVararg && nArgs > numParams {
+		stack.varargs = vals[numParams+1:]
+	}
+	stack.pushN(vals[1:], numParams)
+
+	//切换上下文并调用函数
+	s.pushContext(stack)
+	s.doCall()
+	s.popContext()
+
+	//保存返回值至主调函数栈
+	if nResults != 0 {
+		results := stack.popN(stack.top - stackSize)
+		if !s.CheckStack(len(results)) {
+			panic("stack over flow")
+		}
+		s.stack.pushN(results, nResults)
+	}
+}
+
+func (s *luaState) doCall() {
+	for {
+		i := instruction.Instruction(s.Fetch())
+		i.Execute(s)
+		if i.InstructionName() == "RETURN  " {
+			break
+		}
+	}
 }

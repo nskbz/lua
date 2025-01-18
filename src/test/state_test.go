@@ -10,7 +10,7 @@ import (
 )
 
 func newState() api.LuaState {
-	state := state.NewState(20)
+	state := state.New(20)
 	state.PushString("JACK")
 	state.PushInteger(1)
 	state.PushInteger(2)
@@ -126,7 +126,7 @@ func TestPushXXX(t *testing.T) {
 }
 
 func TestState(t *testing.T) {
-	s := state.NewState(20)
+	s := state.New(20)
 	s.PushBoolean(true)
 	s.PushInteger(10)
 	s.PushNil()
@@ -151,7 +151,7 @@ func TestState(t *testing.T) {
 }
 
 func TestOperation(t *testing.T) {
-	ls := state.NewState(20)
+	ls := state.New(20)
 	ls.PushInteger(1)
 	ls.PushString("2.0")
 	ls.PushString("3.0")
@@ -173,4 +173,11 @@ func TestOperation(t *testing.T) {
 	if !testState(ls, 1, "2.0-83", false) {
 		t.FailNow()
 	}
+}
+
+func TestCheckStack(t *testing.T) {
+	s := state.New(1)
+	s.PushString("jack")
+	s.CheckStack(1)
+	s.PushInteger(1)
 }

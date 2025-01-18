@@ -55,6 +55,25 @@ func (code Instruction) Execute(vm api.LuaVM) {
 		panic(fmt.Sprintf("instruction[%s] mapping action is nil", code.InstructionName()))
 	}
 	h(code, vm)
+	//temporary
+	printStack(vm)
+}
+
+func printStack(s api.LuaVM) {
+	for i := 1; i <= s.RegisterCount(); i++ {
+		tp := s.Type(i)
+		switch tp {
+		case api.LUAVALUE_BOOLEAN:
+			fmt.Printf("[%t]", s.ToBoolean(i))
+		case api.LUAVALUE_NUMBER:
+			fmt.Printf("[%g]", s.ToFloat(i))
+		case api.LUAVALUE_STRING:
+			fmt.Printf("[%q]", s.ToString(i))
+		default:
+			fmt.Printf("[%s]", s.TypeName(tp))
+		}
+	}
+	fmt.Println()
 }
 
 func (code Instruction) InstructionName() string {

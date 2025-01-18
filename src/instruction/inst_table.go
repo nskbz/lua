@@ -40,10 +40,29 @@ func setList(i Instruction, vm api.LuaVM) {
 		c = Instruction(vm.Fetch()).Ax()
 	}
 
+	bIsZero := b == 0
+	if bIsZero {
+		b = int(vm.ToInteger(0)) - a - 1
+		vm.Pop(1)
+	}
+
+	//把寄存器列表里的val添加进table
+	vm.CheckStack(2)
 	for i := 1; i <= b; i++ {
 		vm.PushInteger(int64(c*LFIELDS_PER_FLUSH + i))
 		vm.PushValue(a + i)
 		vm.SetTable(a)
+	}
+
+	//如果b==0还需将栈上的val添加进table
+	if bIsZero {
+		for i := 1; i <= vm.GetTop()-vm.RegisterCount(); i++ {
+			vm.PushInteger(int64(c*LFIELDS_PER_FLUSH + b + i))
+			vm.PushValue(vm.RegisterCount() + i)
+			vm.SetTable(a)
+		}
+
+		vm.SetTop(vm.RegisterCount()) //栈清零
 	}
 }
 

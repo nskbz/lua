@@ -4,7 +4,7 @@ import "nskbz.cn/lua/api"
 
 func move(i Instruction, vm api.LuaVM) {
 	a, b, _ := i.ABC()
-	vm.Copy(a+1, b+1)
+	vm.Copy(b+1, a+1)
 }
 
 func jump(i Instruction, vm api.LuaVM) {
