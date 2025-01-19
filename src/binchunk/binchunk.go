@@ -44,19 +44,19 @@ const (
 )
 
 type Prototype struct {
-	Source       string
-	LineStart    uint32 //启始行号
-	LineEnd      uint32 //结束行号
-	NumParams    byte   //固定参数个数
-	IsVararg     byte
-	MaxStackSize byte
-	Codes        []uint32      //指令表
-	Constants    []interface{} //常量表
-	Upvalues     []Upvalue
-	Protos       []*Prototype //子函数列表
-	LineInfo     []uint32     //行号表 记录每条指令对应源代码中的行号
-	LocVars      []LocVar
-	UpvalueNames []string //与Upvalues一一对应
+	Source          string
+	LineStart       uint32 //启始行号
+	LineEnd         uint32 //结束行号
+	NumParams       byte   //固定参数个数
+	IsVararg        byte
+	MaxRegisterSize byte          //寄存器个数
+	Codes           []uint32      //指令表
+	Constants       []interface{} //常量表
+	Upvalues        []Upvalue
+	Protos          []*Prototype //子函数列表
+	LineInfo        []uint32     //行号表 记录每条指令对应源代码中的行号
+	LocVars         []LocVar
+	UpvalueNames    []string //与Upvalues一一对应
 }
 
 type Upvalue struct {

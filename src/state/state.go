@@ -10,22 +10,18 @@ import (
 	"nskbz.cn/lua/number"
 )
 
-const DefaultStackSize = 20
-
 type luaState struct {
-	stack *luaStack
+	stack    *luaStack
+	registry *table
 }
 
-func New(stackSize int) api.LuaVM {
-	size := DefaultStackSize
-	if stackSize < 500 && stackSize > 0 {
-		size = stackSize
-	}
-	stack := newLuaStack(size)
-	//stack.top = 6
-	return &luaState{
-		stack: stack,
-	}
+func New() api.LuaVM {
+	r := newTable(0, 0)                         //新建注册表
+	r.put(api.LUA_GLOBALS_RIDX, newTable(0, 0)) //添加全局环境进注册表
+
+	ls := &luaState{registry: r}
+	ls.stack = newLuaStack(api.LUA_MIN_STACK, ls)
+	return ls
 }
 
 func (s *luaState) GetTop() int {
@@ -50,6 +46,10 @@ func (s *luaState) SetTop(idx int) {
 //
 //	AbsIndex(0)==top index
 func (s *luaState) AbsIndex(idx int) int {
+	if idx == api.LUA_REGISTRY_INDEX {
+		return idx
+	}
+
 	absidx := 0
 	if idx > 0 {
 		absidx = idx
@@ -63,6 +63,9 @@ func (s *luaState) AbsIndex(idx int) int {
 }
 
 func (s *luaState) isValidIdx(absidx int) bool {
+	if absidx == api.LUA_REGISTRY_INDEX {
+		return true
+	}
 	if absidx <= 0 || absidx > s.stack.len() {
 		return false
 	}
@@ -453,32 +456,23 @@ func (s *luaState) Load(chunk []byte, chunckName, mode string) int {
 	return 0
 }
 
-func (s *luaState) Call(nArgs, nResults int) {
-	vals := s.stack.popN(nArgs + 1)
-	if c, ok := vals[0].(*closure); !ok {
-		panic(fmt.Sprintf("[%s] isn't closure", typeOf(vals[0]).String()))
-	} else {
-		fmt.Printf("call %s<%d,%d>\n", c.proto.Source,
-			c.proto.LineStart, c.proto.LineEnd)
-	}
-
-	function := vals[0].(*closure)
-	stackSize := int(function.proto.MaxStackSize)
-	numParams := int(function.proto.NumParams)
-	isVararg := function.proto.IsVararg == 1
+func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
+	stackSize := int(c.proto.MaxRegisterSize)
+	numParams := int(c.proto.NumParams)
+	isVararg := c.proto.IsVararg == 1
 
 	//初始化被调函数栈，即创建调用帧
-	stack := newLuaStack(stackSize + 20)
-	stack.closure = function
+	stack := newLuaStack(api.LUA_MIN_STACK+stackSize, s)
+	stack.closure = c
 	stack.top = stackSize
-	if isVararg && nArgs > numParams {
-		stack.varargs = vals[numParams+1:]
+	if isVararg && len(args) > numParams {
+		stack.varargs = args[numParams:]
 	}
-	stack.pushN(vals[1:], numParams)
+	stack.pushN(args, numParams)
 
 	//切换上下文并调用函数
 	s.pushContext(stack)
-	s.doCall()
+	s.doLuaFuncCall()
 	s.popContext()
 
 	//保存返回值至主调函数栈
@@ -491,7 +485,7 @@ func (s *luaState) Call(nArgs, nResults int) {
 	}
 }
 
-func (s *luaState) doCall() {
+func (s *luaState) doLuaFuncCall() {
 	for {
 		i := instruction.Instruction(s.Fetch())
 		i.Execute(s)
@@ -499,4 +493,88 @@ func (s *luaState) doCall() {
 			break
 		}
 	}
+}
+
+func (s *luaState) doGoFunc(nResults int, c *closure, args []luaValue) {
+	//准备Go函数调用帧，Go函数的调用帧栈不需要寄存器所以无需设置top值
+	nArgs := len(args)
+	stack := newLuaStack(api.LUA_MIN_STACK+nArgs, s)
+	stack.pushN(args, nArgs)
+	stack.closure = c
+
+	//Go函数调用执行
+	s.pushContext(stack)
+	nr := c.goFunc(s)
+	s.popContext()
+
+	if nResults != 0 {
+		results := stack.popN(nr)
+		if !s.CheckStack(len(results)) {
+			panic("stack over flow")
+		}
+		s.stack.pushN(results, nResults)
+	}
+}
+
+func (s *luaState) Call(nArgs, nResults int) {
+	vals := s.stack.popN(nArgs + 1) //弹出1个func和nArgs个参数
+	if c, ok := vals[0].(*closure); !ok {
+		panic(fmt.Sprintf("[%s] is not a closure", typeOf(vals[0]).String()))
+	} else {
+		if c.goFunc != nil {
+			s.doGoFunc(nResults, c, vals[1:])
+		} else {
+			s.doLuaFunc(nResults, c, vals[1:])
+		}
+	}
+}
+
+/*
+*	Go函数外部调用支持
+ */
+func (s *luaState) PushGoFunction(f api.GoFunc) {
+	gc := newGoClosure(f)
+	s.stack.push(gc)
+}
+
+func (s *luaState) IsGoFunction(idx int) bool {
+	absidx := s.AbsIndex(idx)
+	gf := s.stack.get(absidx)
+	if c, ok := gf.(*closure); ok {
+		return c.goFunc != nil
+	}
+	return false
+}
+
+func (s *luaState) ToGoFunction(idx int) api.GoFunc {
+	absidx := s.AbsIndex(idx)
+	gf := s.stack.get(absidx)
+	if c, ok := gf.(*closure); ok {
+		return c.goFunc
+	}
+	panic(fmt.Sprintf("[%s] is not a closure", typeOf(gf).String()))
+}
+
+/*
+*	全局环境支持
+ */
+func (s *luaState) PushGlobalTable() {
+	s.stack.push(s.registry.get(api.LUA_GLOBALS_RIDX))
+}
+
+func (s *luaState) GetGlobal(key string) api.LuaValueType {
+	s.PushGlobalTable()
+	s.PushString(key)
+	return s.GetTable(-1)
+}
+
+func (s *luaState) SetGlobal(key string) {
+	global := s.registry.get(api.LUA_GLOBALS_RIDX)
+	val := s.stack.pop()
+	s.setTableKV(global, key, val)
+}
+
+func (s *luaState) Register(key string, gf api.GoFunc) {
+	s.stack.push(newGoClosure(gf))
+	s.SetGlobal(key)
 }

@@ -55,8 +55,8 @@ func (code Instruction) Execute(vm api.LuaVM) {
 		panic(fmt.Sprintf("instruction[%s] mapping action is nil", code.InstructionName()))
 	}
 	h(code, vm)
-	//temporary
-	printStack(vm)
+	//debug
+	//printStack(vm)
 }
 
 func printStack(s api.LuaVM) {

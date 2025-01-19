@@ -47,7 +47,7 @@ func (s *luaState) LoadProto(idx int) {
 }
 
 func (s *luaState) RegisterCount() int {
-	return int(s.stack.closure.proto.MaxStackSize)
+	return int(s.stack.closure.proto.MaxRegisterSize)
 }
 
 func (s *luaState) LoadVarargs(n int) {

@@ -31,6 +31,9 @@ func (tp LuaValueType) String() string {
 type ArithOp int   //算术运算与位运算
 type CompareOp int //比较运算
 
+// Go函数;return返回值的个数
+type GoFunc func(LuaVM) int
+
 /*		Stack					Index
 *		|			nil			 |	  7 		  -							  -
 *		|			nil			 |	  6			 |	无效索引		|
@@ -39,7 +42,9 @@ type CompareOp int //比较运算
 *		|	LuaValue	|		3		 |	有效			  |
 *		|	LuaValue	|		2		|	索引			|
 *		|	LuaValue	|		1	   -					   -
- */
+ *
+ *		LuaState主要是基于luaStack上的功能封装
+*/
 
 type LuaState interface {
 	/*
@@ -108,5 +113,20 @@ type LuaState interface {
 	*	函数调用
 	 */
 	Load(chunk []byte, chunckName, mode string) int //加载chunk获得对应的closure并将其压入栈
-	Call(nArgs, nResults int)                       //将nArgs+1数量的val弹出作为函数及其参数，执行closure，最后将nResults数量的结果值压入栈
+	//lua函数：将nArgs+1数量的val弹出作为函数及其参数，执行closure，最后将nResults数量的结果值压入栈
+	//go函数：将nArgs数量的val弹出作为外部Go函数的参数，执行Go函数并将所有返回值都压入栈中
+	Call(nArgs, nResults int)
+	/*
+	*	Go函数支持
+	 */
+	PushGoFunction(f GoFunc)
+	IsGoFunction(idx int) bool
+	ToGoFunction(idx int) GoFunc
+	/*
+	*	全局环境
+	 */
+	PushGlobalTable()                  //将全局环境压入栈顶
+	GetGlobal(key string) LuaValueType //获取key=name的全局环境
+	SetGlobal(key string)              //设置全局环境key=val(val=stack[top])
+	Register(key string, gf GoFunc)    //注册外部Go函数
 }

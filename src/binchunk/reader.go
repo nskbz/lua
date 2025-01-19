@@ -60,19 +60,19 @@ func (r *reader) readProto(parentSource string) *Prototype {
 		s = parentSource
 	}
 	return &Prototype{
-		Source:       s,
-		LineStart:    r.readUint32(),
-		LineEnd:      r.readUint32(),
-		NumParams:    r.readByte(),
-		IsVararg:     r.readByte(),
-		MaxStackSize: r.readByte(),
-		Codes:        r.readCodes(),
-		Constants:    r.readConstants(),
-		Upvalues:     r.readUpvalues(),
-		Protos:       r.readProtos(s),
-		LineInfo:     r.readLineInfo(),
-		LocVars:      r.readLocVars(),
-		UpvalueNames: r.readUpvalueNames(),
+		Source:          s,
+		LineStart:       r.readUint32(),
+		LineEnd:         r.readUint32(),
+		NumParams:       r.readByte(),
+		IsVararg:        r.readByte(),
+		MaxRegisterSize: r.readByte(),
+		Codes:           r.readCodes(),
+		Constants:       r.readConstants(),
+		Upvalues:        r.readUpvalues(),
+		Protos:          r.readProtos(s),
+		LineInfo:        r.readLineInfo(),
+		LocVars:         r.readLocVars(),
+		UpvalueNames:    r.readUpvalueNames(),
 	}
 }
 

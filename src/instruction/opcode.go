@@ -60,7 +60,7 @@ var instructions = []opcode{
 	{0, ArgR, ArgU, ArgU, IABC, "LOADBOOL", loadBool}, // R(A) := (bool)B; if (C) pc++
 	{0, ArgR, ArgU, ArgN, IABC, "LOADNIL ", loadNil},  // R(A), R(A+1), ..., R(A+B) := nil
 	{0, ArgR, ArgU, ArgN, IABC, "GETUPVAL", nil},
-	{0, ArgR, ArgU, ArgK, IABC, "GETTABUP", nil},
+	{0, ArgR, ArgU, ArgRK, IABC, "GETTABUP", getTabUp}, //R(A) := UpValue[B][RK(C)]
 	{0, ArgR, ArgR, ArgRK, IABC, "GETTABLE", getTable}, //R(A) := R(B)[RK(C)]
 	{0, ArgU, ArgK, ArgK, IABC, "SETTABUP", nil},
 	{0, ArgU, ArgU, ArgN, IABC, "SETUPVAL", nil},

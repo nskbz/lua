@@ -1,6 +1,10 @@
 package state
 
-import "fmt"
+import (
+	"fmt"
+
+	"nskbz.cn/lua/api"
+)
 
 //以1为起始索引的lua栈
 //栈顶(top)指向最新的val
@@ -13,13 +17,16 @@ type luaStack struct {
 	closure *closure
 	varargs []luaValue
 	pc      int
+
+	state *luaState
 }
 
-func newLuaStack(size int) *luaStack {
+func newLuaStack(size int, state *luaState) *luaStack {
 	return &luaStack{
 		slots: make([]luaValue, size+1),
 		top:   0,
 		pc:    0,
+		state: state,
 	}
 }
 
@@ -43,17 +50,27 @@ func (s *luaStack) expand(n int) {
 }
 
 func (s *luaStack) checkIdx(absidx int) {
+	if absidx == api.LUA_REGISTRY_INDEX {
+		return
+	}
 	if absidx <= 0 || absidx > s.top {
 		panic(fmt.Sprintf("stack access[%d] out of limit[1,%d]!!", absidx, s.top))
 	}
 }
 
 func (s *luaStack) get(absidx int) luaValue {
+	if absidx == api.LUA_REGISTRY_INDEX {
+		return s.state.registry
+	}
 	s.checkIdx(absidx)
 	return s.slots[absidx]
 }
 
 func (s *luaStack) set(absidx int, val luaValue) {
+	if absidx == api.LUA_REGISTRY_INDEX {
+		s.state.registry = val.(*table)
+		return
+	}
 	s.checkIdx(absidx)
 	s.slots[absidx] = val
 }
