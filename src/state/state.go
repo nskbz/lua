@@ -46,7 +46,7 @@ func (s *luaState) SetTop(idx int) {
 //
 //	AbsIndex(0)==top index
 func (s *luaState) AbsIndex(idx int) int {
-	if idx == api.LUA_REGISTRY_INDEX {
+	if idx <= api.LUA_REGISTRY_INDEX {
 		return idx
 	}
 
@@ -60,6 +60,21 @@ func (s *luaState) AbsIndex(idx int) int {
 		panic("lua _state_stack overflow")
 	}
 	return absidx
+}
+
+func (s *luaState) UpvalueIndex(i int) int {
+	return api.LUA_REGISTRY_INDEX - i
+}
+
+func (s *luaState) CloseUpvalues(a int) {
+	//to do 这里不是很懂
+	for i, v := range s.stack.openuvs {
+		if i >= a+1 {
+			value := *v.val
+			v.val = &value
+			delete(s.stack.openuvs, i)
+		}
+	}
 }
 
 func (s *luaState) isValidIdx(absidx int) bool {
@@ -88,8 +103,8 @@ func (s *luaState) Pop(n int) {
 func (s *luaState) Copy(fromIdx, toIdx int) {
 	form := s.AbsIndex(fromIdx)
 	to := s.AbsIndex(toIdx)
-	fv := s.stack.get(form)
-	s.stack.set(to, fv)
+	fr := s.stack.get(form)
+	s.stack.set(to, fr)
 }
 
 func (s *luaState) PushValue(idx int) {
@@ -451,7 +466,11 @@ func (s *luaState) popContext() {
 
 func (s *luaState) Load(chunk []byte, chunckName, mode string) int {
 	proto := binchunk.Undump(chunk)
-	c := newClosure(proto)
+	c := newLuaClosure(proto)
+	if len(c.upvals) > 0 {
+		env := s.registry.get(api.LUA_GLOBALS_RIDX)
+		c.upvals[0] = upvalue{&env}
+	}
 	s.stack.push(c)
 	return 0
 }
@@ -532,8 +551,12 @@ func (s *luaState) Call(nArgs, nResults int) {
 /*
 *	Go函数外部调用支持
  */
-func (s *luaState) PushGoFunction(f api.GoFunc) {
-	gc := newGoClosure(f)
+func (s *luaState) PushGoFunction(gf api.GoFunc, n int) {
+	gc := newGoClosure(gf, n)
+	for i := 0; i < n; i++ {
+		val := s.stack.pop()
+		gc.upvals[n-i-1] = upvalue{&val}
+	}
 	s.stack.push(gc)
 }
 
@@ -575,6 +598,6 @@ func (s *luaState) SetGlobal(key string) {
 }
 
 func (s *luaState) Register(key string, gf api.GoFunc) {
-	s.stack.push(newGoClosure(gf))
+	s.stack.push(newGoClosure(gf, 0))
 	s.SetGlobal(key)
 }

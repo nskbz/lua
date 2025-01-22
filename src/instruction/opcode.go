@@ -54,16 +54,16 @@ const (
 var instructions = []opcode{
 	//	是否为逻辑判断指令|	 A	| 	B   |	 C	|指令类型| 指令名
 	//ABC模式下每个参数9bit最高位表示该参数是否为常量表索引
-	{0, ArgR, ArgR, ArgN, IABC, "MOVE    ", move},     // R(A) := R(B)
-	{0, ArgR, ArgK, ArgN, IABx, "LOADK   ", loadK},    // R(A) := Kst(Bx)
-	{0, ArgR, ArgN, ArgN, IABx, "LOADKX  ", loadKX},   // R(A) := Kst(extra arg)
-	{0, ArgR, ArgU, ArgU, IABC, "LOADBOOL", loadBool}, // R(A) := (bool)B; if (C) pc++
-	{0, ArgR, ArgU, ArgN, IABC, "LOADNIL ", loadNil},  // R(A), R(A+1), ..., R(A+B) := nil
-	{0, ArgR, ArgU, ArgN, IABC, "GETUPVAL", nil},
-	{0, ArgR, ArgU, ArgRK, IABC, "GETTABUP", getTabUp}, //R(A) := UpValue[B][RK(C)]
-	{0, ArgR, ArgR, ArgRK, IABC, "GETTABLE", getTable}, //R(A) := R(B)[RK(C)]
-	{0, ArgU, ArgK, ArgK, IABC, "SETTABUP", nil},
-	{0, ArgU, ArgU, ArgN, IABC, "SETUPVAL", nil},
+	{0, ArgR, ArgR, ArgN, IABC, "MOVE    ", move},       // R(A) := R(B)
+	{0, ArgR, ArgK, ArgN, IABx, "LOADK   ", loadK},      // R(A) := Kst(Bx)
+	{0, ArgR, ArgN, ArgN, IABx, "LOADKX  ", loadKX},     // R(A) := Kst(extra arg)
+	{0, ArgR, ArgU, ArgU, IABC, "LOADBOOL", loadBool},   // R(A) := (bool)B; if (C) pc++
+	{0, ArgR, ArgU, ArgN, IABC, "LOADNIL ", loadNil},    // R(A), R(A+1), ..., R(A+B) := nil
+	{0, ArgR, ArgU, ArgN, IABC, "GETUPVAL", getUpval},   // R(A) := UpValue[B]
+	{0, ArgR, ArgU, ArgRK, IABC, "GETTABUP", getTabUp},  //R(A) := UpValue[B][RK(C)]
+	{0, ArgR, ArgR, ArgRK, IABC, "GETTABLE", getTable},  //R(A) := R(B)[RK(C)]
+	{0, ArgU, ArgK, ArgK, IABC, "SETTABUP", setTabUp},   // UpValue[A][RK(B)] := RK(C)
+	{0, ArgR, ArgU, ArgN, IABC, "SETUPVAL", setUpval},   // UpValue[B] := R(A)
 	{0, ArgU, ArgRK, ArgRK, IABC, "SETTABLE", setTable}, //R(A)[RK(B)] := RK(C)
 	{0, ArgR, ArgU, ArgU, IABC, "NEWTABLE", newTable},   //R(A) := {} (size = B,C)
 	{0, ArgR, ArgR, ArgK, IABC, "SELF    ", self},       // R(A+1) := R(B); R(A) := R(B)[RK(C)]

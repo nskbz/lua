@@ -42,8 +42,26 @@ func (s *luaState) GetRK(arg int) {
 
 func (s *luaState) LoadProto(idx int) {
 	proto := s.stack.closure.proto.Protos[idx]
-	closure := newClosure(proto)
-	s.stack.push(closure)
+	c := newLuaClosure(proto)
+
+	for i, v := range proto.Upvalues {
+		uidx := int(v.Idx)
+		if v.Instack == 0 { //==0 表示该捕获变量属于函数的外部
+			c.upvals[i] = s.stack.closure.upvals[uidx]
+		} else if v.Instack == 1 { //==1 表示该捕获变量属于函数的内部
+			//记录打开的捕获变量
+			if up, ok := s.stack.openuvs[uidx]; !ok {
+				val := s.stack.get(uidx + 1)
+				uv := upvalue{&val}
+				c.upvals[i] = uv
+				s.stack.openuvs[uidx] = uv
+			} else {
+				c.upvals[i] = up
+			}
+		}
+	}
+
+	s.stack.push(c)
 }
 
 func (s *luaState) RegisterCount() int {

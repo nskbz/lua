@@ -37,7 +37,12 @@ const (
 	CompareOp_LE                  //<=
 )
 
+/*
+*	Index:
+*	[-∞,-LUA_MAX_STACK - 1000)∪[-LUA_MAX_STACK ,LUA_MAX_STACK ]
+ *	UpvalIdx∪AbsIdx
+*/
 const LUA_MIN_STACK = 20
 const LUA_MAX_STACK = 1000000
 const LUA_REGISTRY_INDEX = -LUA_MAX_STACK - 1000
-const LUA_GLOBALS_RIDX int64 = 2 //lua虚拟机执行入口的Load会压入lua默认main函数(index=1)，所以全局表放在index=2
+const LUA_GLOBALS_RIDX int64 = 2 //

@@ -2,14 +2,40 @@ package instruction
 
 import "nskbz.cn/lua/api"
 
+// R(A) := UpValue[B]
+func getUpval(i Instruction, vm api.LuaVM) {
+	a, b, _ := i.ABC()
+	a += 1
+	b += 1 //Upval索引也是1开始
+	uvIdx := vm.UpvalueIndex(b)
+	vm.Copy(uvIdx, a)
+}
+
+// UpValue[B] := R(A)
+func setUpval(i Instruction, vm api.LuaVM) {
+	a, b, _ := i.ABC()
+	a += 1
+	b += 1
+	vm.PushValue(a)
+	vm.Replace(vm.UpvalueIndex(b))
+}
+
 // R(A) := UpValue[B][RK(C)]
 func getTabUp(i Instruction, vm api.LuaVM) {
-	a, _, c := i.ABC()
+	a, b, c := i.ABC()
 	a += 1
+	b += 1
 
-	vm.PushGlobalTable()
 	vm.GetRK(c)
-	vm.GetTable(-1)
+	vm.GetTable(vm.UpvalueIndex(b))
 	vm.Replace(a)
-	vm.Pop(1) //弹出global
+}
+
+// UpValue[A][RK(B)] := RK(C)
+func setTabUp(i Instruction, vm api.LuaVM) {
+	a, b, c := i.ABC()
+	a += 1
+	vm.GetRK(b)
+	vm.GetRK(c)
+	vm.SetTable(vm.UpvalueIndex(a))
 }

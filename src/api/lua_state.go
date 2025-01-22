@@ -119,7 +119,7 @@ type LuaState interface {
 	/*
 	*	Go函数支持
 	 */
-	PushGoFunction(f GoFunc)
+	PushGoFunction(gf GoFunc, n int)
 	IsGoFunction(idx int) bool
 	ToGoFunction(idx int) GoFunc
 	/*
@@ -129,4 +129,9 @@ type LuaState interface {
 	GetGlobal(key string) LuaValueType //获取key=name的全局环境
 	SetGlobal(key string)              //设置全局环境key=val(val=stack[top])
 	Register(key string, gf GoFunc)    //注册外部Go函数
+	/*
+	*	Upvalue支持
+	 */
+	UpvalueIndex(i int) int //获取Upvalue索引
+	CloseUpvalues(a int)    //取消对>=Upvalue[a-1]的引用
 }

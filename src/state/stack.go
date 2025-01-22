@@ -16,6 +16,7 @@ type luaStack struct {
 	prev    *luaStack
 	closure *closure
 	varargs []luaValue
+	openuvs map[int]upvalue
 	pc      int
 
 	state *luaState
@@ -23,10 +24,11 @@ type luaStack struct {
 
 func newLuaStack(size int, state *luaState) *luaStack {
 	return &luaStack{
-		slots: make([]luaValue, size+1),
-		top:   0,
-		pc:    0,
-		state: state,
+		slots:   make([]luaValue, size+1),
+		top:     0,
+		pc:      0,
+		openuvs: make(map[int]upvalue),
+		state:   state,
 	}
 }
 
@@ -53,25 +55,48 @@ func (s *luaStack) checkIdx(absidx int) {
 	if absidx == api.LUA_REGISTRY_INDEX {
 		return
 	}
+	if absidx < api.LUA_REGISTRY_INDEX {
+		uvIdx := api.LUA_REGISTRY_INDEX - absidx - 1 //Upvalue索引(lua指令)是从1开始递增，所以需要减1
+		if s.closure == nil || uvIdx >= len(s.closure.upvals) {
+			panic(fmt.Sprintf("upval access[%d] out of limit[1,%d]!!", uvIdx, len(s.closure.upvals)))
+		}
+		return
+	}
 	if absidx <= 0 || absidx > s.top {
 		panic(fmt.Sprintf("stack access[%d] out of limit[1,%d]!!", absidx, s.top))
 	}
 }
 
 func (s *luaStack) get(absidx int) luaValue {
+	s.checkIdx(absidx)
 	if absidx == api.LUA_REGISTRY_INDEX {
 		return s.state.registry
 	}
-	s.checkIdx(absidx)
+	if absidx < api.LUA_REGISTRY_INDEX {
+		uvIdx := api.LUA_REGISTRY_INDEX - absidx - 1
+		c := s.closure
+		if c == nil || uvIdx >= len(c.upvals) {
+			return nil
+		}
+		return *(c.upvals[uvIdx].val)
+	}
 	return s.slots[absidx]
 }
 
 func (s *luaStack) set(absidx int, val luaValue) {
+	s.checkIdx(absidx)
 	if absidx == api.LUA_REGISTRY_INDEX {
 		s.state.registry = val.(*table)
 		return
 	}
-	s.checkIdx(absidx)
+	if absidx < api.LUA_REGISTRY_INDEX {
+		uvIdx := api.LUA_REGISTRY_INDEX - absidx - 1
+		c := s.closure
+		if c != nil && uvIdx < len(c.upvals) {
+			c.upvals[uvIdx] = upvalue{&val}
+		}
+		return
+	}
 	s.slots[absidx] = val
 }
 

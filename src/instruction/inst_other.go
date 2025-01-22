@@ -7,11 +7,12 @@ func move(i Instruction, vm api.LuaVM) {
 	vm.Copy(b+1, a+1)
 }
 
+// pc+=sBx; if (A) close all upvalues >= R(A - 1)
 func jump(i Instruction, vm api.LuaVM) {
 	a, bx := i.AsBx()
 	vm.AddPC(bx)
 	if a != 0 {
-		panic("todo")
+		vm.CloseUpvalues(a)
 	}
 }
 
