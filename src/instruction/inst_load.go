@@ -2,6 +2,7 @@ package instruction
 
 import "nskbz.cn/lua/api"
 
+// R(A), R(A+1), ..., R(A+B) := nil
 func loadNil(i Instruction, vm api.LuaVM) {
 	a, b, _ := i.ABC()
 	a += 1
@@ -12,6 +13,7 @@ func loadNil(i Instruction, vm api.LuaVM) {
 	vm.Pop(1)
 }
 
+// R(A) := (bool)B; if (C) pc++
 func loadBool(i Instruction, vm api.LuaVM) {
 	a, b, c := i.ABC()
 	vm.PushBoolean(b != 0)
@@ -21,12 +23,14 @@ func loadBool(i Instruction, vm api.LuaVM) {
 	}
 }
 
+// R(A) := Kst(Bx)
 func loadK(i Instruction, vm api.LuaVM) {
 	a, bx := i.ABx()
 	vm.GetConst(bx)
 	vm.Replace(a + 1)
 }
 
+// R(A) := Kst(extra arg)
 func loadKX(i Instruction, vm api.LuaVM) {
 	a, _ := i.ABx()
 	ex := Instruction(vm.Fetch())

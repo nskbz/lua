@@ -2,7 +2,6 @@ package state
 
 import (
 	"fmt"
-	"strings"
 
 	"nskbz.cn/lua/api"
 	"nskbz.cn/lua/binchunk"
@@ -62,6 +61,9 @@ func (s *luaState) AbsIndex(idx int) int {
 	return absidx
 }
 
+/*
+*	Upvalue支持
+ */
 func (s *luaState) UpvalueIndex(i int) int {
 	return api.LUA_REGISTRY_INDEX - i
 }
@@ -87,13 +89,12 @@ func (s *luaState) isValidIdx(absidx int) bool {
 	return true
 }
 
-func (s *luaState) CheckStack(n int) bool {
+func (s *luaState) CheckStack(n int) {
 	if n < 0 {
-		return false
+		panic("stack can not expand")
 	}
 	available := s.stack.len() - s.stack.top
 	s.stack.expand(n - available)
-	return true
 }
 
 func (s *luaState) Pop(n int) {
@@ -304,15 +305,17 @@ func (s *luaState) Arith(op api.ArithOp) {
 		panic(fmt.Sprintf("no supported arith for %d", op))
 	}
 	var result luaValue
+	var success bool
 	b := s.stack.pop()
 	//区分一元运算与二元运算
 	if op >= api.ArithOp_OPPOSITE {
-		result = doUnitaryArith(b, operation)
+		result, success = doUnitaryArith(b, operation, s)
 	} else {
 		a := s.stack.pop()
-		result = doDualArith(a, b, operation)
+		result, success = doDualArith(a, b, operation, s)
 	}
-	if result == nil {
+
+	if !success {
 		panic(fmt.Sprintf("Arith error =>%d", op))
 	}
 	s.stack.push(result) //结果压入栈
@@ -323,11 +326,11 @@ func (s *luaState) Compare(idx1, idx2 int, op api.CompareOp) bool {
 	b := s.stack.get(s.AbsIndex(idx2))
 	switch op {
 	case api.CompareOp_EQ:
-		return doEq(a, b)
+		return doEq(a, b, s)
 	case api.CompareOp_LT:
-		return doLt(a, b)
+		return doLt(a, b, s)
 	case api.CompareOp_LE:
-		return doLe(a, b)
+		return doLe(a, b, s)
 	}
 	panic(fmt.Sprintf("no supported compare for %d", op))
 }
@@ -339,6 +342,11 @@ func (s *luaState) Len(idx int) {
 	case string:
 		s.stack.push(int64(len(x)))
 	case *table:
+		if c := getMetaClosure(s, META_LEN, val); c != nil {
+			result := callMetaClosure(s, c, 1, val)
+			s.stack.push(result[0])
+			break
+		}
 		s.stack.push(int64(x.len()))
 	default:
 		panic(fmt.Sprintf("no supported length for %v", x))
@@ -346,21 +354,33 @@ func (s *luaState) Len(idx int) {
 }
 
 func (s *luaState) Concat(n int) {
-	if n < 0 {
+	if n < 0 || n == 1 {
 		return
 	}
-	str := strings.Builder{}
+	if n == 0 {
+		s.stack.push("")
+		return
+	}
 	from := s.AbsIndex(-(n - 1))
 	s.stack.reverse(from, s.stack.top)
-	for i := 0; i < n; i++ {
-		val := s.stack.pop()
-		s, ok := convertToString(val)
-		if !ok {
-			panic("error for concat")
+	for i := n; i > 1; i-- { //当n==1时只剩一个元素故结束
+		a := s.stack.pop()
+		b := s.stack.pop()
+		if x, ok := convertToString(a); ok {
+			if y, ok := convertToString(b); ok {
+				s.stack.push(x + y)
+				continue
+			}
 		}
-		str.WriteString(s)
+
+		//如果不能转换为string,则调用元方法
+		if c := getMetaClosure(s, META_CONCAT, a, b); c != nil {
+			result := callMetaClosure(s, c, 1, a, b)
+			s.stack.push(result[0])
+		} else {
+			panic("do not found meta function for concat")
+		}
 	}
-	s.stack.push(str.String())
 }
 
 /*
@@ -378,31 +398,48 @@ func (s *luaState) CreateTable(nArr, nRec int) {
 func (s *luaState) GetTable(idx int) api.LuaValueType {
 	absidx := s.AbsIndex(idx)
 	t := s.stack.get(absidx)
-	ti := s.stack.pop()
-	return s.getTableVal(t, ti)
+	k := s.stack.pop()
+	return s.getTableVal(t, k, false)
 }
 
 func (s *luaState) GetField(idx int, k string) api.LuaValueType {
 	absidx := s.AbsIndex(idx)
 	t := s.stack.get(absidx)
-	return s.getTableVal(t, k)
+	return s.getTableVal(t, k, false)
 }
 
 func (s *luaState) GetI(idx int, i int64) api.LuaValueType {
 	absidx := s.AbsIndex(idx)
 	t := s.stack.get(absidx)
-	return s.getTableVal(t, i)
+	return s.getTableVal(t, i, false)
 }
 
 // 获取t中键k的val的类型，并将val压入栈顶
-func (s *luaState) getTableVal(t luaValue, k luaValue) api.LuaValueType {
-	if api.LUAVALUE_TABLE != typeOf(t) {
-		panic(fmt.Sprintf("type[%d] is not a table", typeOf(t)))
+func (s *luaState) getTableVal(t luaValue, k luaValue, raw bool) api.LuaValueType {
+	if api.LUAVALUE_TABLE == typeOf(t) {
+		tb := t.(*table)
+		//是否采用元方法||t是表但t[k]是否存在||t没有META_INDEX元方法
+		if raw || tb.get(k) != nil || !tb.hasMetaFunc(META_INDEX) {
+			val := tb.get(k)
+			s.stack.push(val)
+			return typeOf(val)
+		}
 	}
-	tb := t.(*table)
-	val := tb.get(k)
-	s.stack.push(val)
-	return typeOf(val)
+
+	//采用元方法,t不是表或k在表中的值不存在
+	if !raw {
+		if val := getMetaClosure(s, META_INDEX, t); val != nil {
+			switch x := val.(type) {
+			case *table: //t是表但不存在k的值
+				return s.getTableVal(x, k, false)
+			case *closure: //t拥有META_INDEX函数
+				result := callMetaClosure(s, val, 1, t, k)
+				s.stack.push(result[0])
+				return typeOf(result[0])
+			}
+		}
+	}
+	panic(fmt.Sprintf("type[%d] is not a table", typeOf(t)))
 }
 
 func (s *luaState) SetTable(idx int) {
@@ -410,29 +447,47 @@ func (s *luaState) SetTable(idx int) {
 	t := s.stack.get(absidx)
 	val := s.stack.pop()
 	key := s.stack.pop()
-	s.setTableKV(t, key, val)
+	s.setTableKV(t, key, val, false)
 }
 
 func (s *luaState) SetField(idx int, k string) {
 	absidx := s.AbsIndex(idx)
 	t := s.stack.get(absidx)
 	val := s.stack.pop()
-	s.setTableKV(t, k, val)
+	s.setTableKV(t, k, val, false)
 }
 
 func (s *luaState) SetI(idx int, i int64) {
 	absidx := s.AbsIndex(idx)
 	t := s.stack.get(absidx)
 	val := s.stack.pop()
-	s.setTableKV(t, i, val)
+	s.setTableKV(t, i, val, false)
 }
 
-func (s *luaState) setTableKV(t luaValue, k, v luaValue) {
-	if api.LUAVALUE_TABLE != typeOf(t) {
-		panic(fmt.Sprintf("type[%d] is not a table", typeOf(t)))
+func (s *luaState) setTableKV(t luaValue, k, v luaValue, raw bool) {
+	if api.LUAVALUE_TABLE == typeOf(t) {
+		tb := t.(*table)
+		if raw || tb.get(k) != nil || !tb.hasMetaFunc(META_NEW_INDEX) {
+			tb.put(k, v)
+			return
+		}
 	}
-	tb := t.(*table)
-	tb.put(k, v)
+
+	//采用元方法,t不是表或k在表中的值不存在
+	if !raw {
+		if val := getMetaClosure(s, META_NEW_INDEX, t); val != nil {
+			switch x := val.(type) {
+			case *table: //t是表但不存在k的值
+				s.setTableKV(x, k, v, false)
+				return
+			case *closure: //t拥有META_NEW_INDEX函数
+				callMetaClosure(s, x, 0, val, t, k, v)
+				return
+			}
+		}
+	}
+
+	panic(fmt.Sprintf("type[%d] is not a table", typeOf(t)))
 }
 
 /*
@@ -483,11 +538,11 @@ func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
 	//初始化被调函数栈，即创建调用帧
 	stack := newLuaStack(api.LUA_MIN_STACK+stackSize, s)
 	stack.closure = c
-	stack.top = stackSize
 	if isVararg && len(args) > numParams {
 		stack.varargs = args[numParams:]
 	}
 	stack.pushN(args, numParams)
+	stack.top = stackSize //这一步必须放在push参数后位置才对
 
 	//切换上下文并调用函数
 	s.pushContext(stack)
@@ -497,9 +552,7 @@ func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
 	//保存返回值至主调函数栈
 	if nResults != 0 {
 		results := stack.popN(stack.top - stackSize)
-		if !s.CheckStack(len(results)) {
-			panic("stack over flow")
-		}
+		s.CheckStack(len(results))
 		s.stack.pushN(results, nResults)
 	}
 }
@@ -528,23 +581,32 @@ func (s *luaState) doGoFunc(nResults int, c *closure, args []luaValue) {
 
 	if nResults != 0 {
 		results := stack.popN(nr)
-		if !s.CheckStack(len(results)) {
-			panic("stack over flow")
-		}
+		s.CheckStack(len(results))
 		s.stack.pushN(results, nResults)
 	}
 }
 
 func (s *luaState) Call(nArgs, nResults int) {
 	vals := s.stack.popN(nArgs + 1) //弹出1个func和nArgs个参数
-	if c, ok := vals[0].(*closure); !ok {
-		panic(fmt.Sprintf("[%s] is not a closure", typeOf(vals[0]).String()))
-	} else {
-		if c.goFunc != nil {
-			s.doGoFunc(nResults, c, vals[1:])
+	c, ok := vals[0].(*closure)
+	//如若不能转换为函数则寻找该值的META_CALL元方法
+	if !ok {
+		if mc := getMetaClosure(s, META_CALL, vals[0]); mc == nil {
+			//不是函数且没有META_CALL元方法报错
+			//panic(fmt.Sprintf("[%s] is not a closure", typeOf(vals[0]).String()))
 		} else {
-			s.doLuaFunc(nResults, c, vals[1:])
+			if _c, ok := mc.(*closure); ok {
+				c = _c
+				vals = append([]luaValue{nil}, vals...)
+				// nArgs += 1
+			}
 		}
+	}
+
+	if c.goFunc != nil {
+		s.doGoFunc(nResults, c, vals[1:])
+	} else {
+		s.doLuaFunc(nResults, c, vals[1:])
 	}
 }
 
@@ -594,10 +656,84 @@ func (s *luaState) GetGlobal(key string) api.LuaValueType {
 func (s *luaState) SetGlobal(key string) {
 	global := s.registry.get(api.LUA_GLOBALS_RIDX)
 	val := s.stack.pop()
-	s.setTableKV(global, key, val)
+	s.setTableKV(global, key, val, true)
 }
 
 func (s *luaState) Register(key string, gf api.GoFunc) {
 	s.stack.push(newGoClosure(gf, 0))
 	s.SetGlobal(key)
+}
+
+/*
+*	元编程支持
+ */
+func (s *luaState) GetMetaTable(idx int) bool {
+	absidx := s.AbsIndex(idx)
+	val := s.stack.get(absidx)
+	if mt := getMetaTable(val, s); mt != nil {
+		s.stack.push(mt)
+		return true
+	}
+	return false
+}
+
+func (s *luaState) SetMetaTable(idx int) {
+	absidx := s.AbsIndex(idx)
+	val := s.stack.get(absidx)
+	mt := s.stack.pop()
+	if mt == nil {
+		setMetaTable(val, nil, s)
+	} else if t, ok := mt.(*table); ok {
+		setMetaTable(val, t, s)
+	} else {
+		panic("table expected!")
+	}
+}
+
+func (s *luaState) RawLen(idx int) uint {
+	absidx := s.AbsIndex(idx)
+	val := s.stack.get(absidx)
+	switch x := val.(type) {
+	case string:
+		return uint(len(x))
+	case *table:
+		return uint(x.len())
+	}
+	return 0
+}
+
+func (s *luaState) RawEqual(idx1, idx2 int) bool {
+	absidx1 := s.AbsIndex(idx1)
+	absidx2 := s.AbsIndex(idx2)
+	a := s.stack.get(absidx1)
+	b := s.stack.get(absidx2)
+	return doEq(a, b, nil)
+}
+
+func (s *luaState) RawGet(idx int) api.LuaValueType {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	k := s.stack.pop()
+	return s.getTableVal(t, k, true)
+}
+
+func (s *luaState) RawSet(idx int) {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	v := s.stack.pop()
+	k := s.stack.pop()
+	s.setTableKV(t, k, v, true)
+}
+
+func (s *luaState) RawGetI(idx int, i int64) api.LuaValueType {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	return s.getTableVal(t, i, true)
+}
+
+func (s *luaState) RawSetI(idx int, i int64) {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	v := s.stack.pop()
+	s.setTableKV(t, i, v, true)
 }

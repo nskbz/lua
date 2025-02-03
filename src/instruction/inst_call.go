@@ -50,6 +50,7 @@ func _popResults(a, c int, vm api.LuaVM) {
 	}
 }
 
+// R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
 func call(i Instruction, vm api.LuaVM) {
 	a, b, c := i.ABC()
 	a += 1
@@ -72,6 +73,7 @@ func tailcall(i Instruction, vm api.LuaVM) {
 	_popResults(a, 0, vm)
 }
 
+// return R(A),...,R(A+B-2)
 func luaReturn(i Instruction, vm api.LuaVM) {
 	a, b, _ := i.ABC()
 	a += 1
@@ -116,6 +118,7 @@ func vararg(i Instruction, vm api.LuaVM) {
 	}
 }
 
+// R(A+1) := R(B); R(A) := R(B)[RK(C)]
 func self(i Instruction, vm api.LuaVM) {
 	a, b, c := i.ABC()
 	a += 1

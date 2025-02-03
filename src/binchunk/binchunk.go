@@ -45,10 +45,10 @@ const (
 
 type Prototype struct {
 	Source          string
-	LineStart       uint32 //启始行号
-	LineEnd         uint32 //结束行号
-	NumParams       byte   //固定参数个数
-	IsVararg        byte
+	LineStart       uint32        //启始行号
+	LineEnd         uint32        //结束行号
+	NumParams       byte          //固定参数个数
+	IsVararg        byte          //是否有可变参数
 	MaxRegisterSize byte          //寄存器个数
 	Codes           []uint32      //指令表
 	Constants       []interface{} //常量表

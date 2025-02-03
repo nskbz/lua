@@ -2,6 +2,7 @@ package instruction
 
 import "nskbz.cn/lua/api"
 
+// R(A) := {} (size = B,C)
 func newTable(i Instruction, vm api.LuaVM) {
 	a, b, c := i.ABC()
 	a += 1
@@ -9,6 +10,7 @@ func newTable(i Instruction, vm api.LuaVM) {
 	vm.Replace(a)
 }
 
+// R(A) := R(B)[RK(C)]
 func getTable(i Instruction, vm api.LuaVM) {
 	a, b, c := i.ABC()
 	a += 1
@@ -18,6 +20,7 @@ func getTable(i Instruction, vm api.LuaVM) {
 	vm.Replace(a)
 }
 
+// R(A)[RK(B)] := RK(C)
 func setTable(i Instruction, vm api.LuaVM) {
 	a, b, c := i.ABC()
 	a += 1

@@ -7,8 +7,9 @@ import (
 )
 
 type table struct {
-	_arr []luaValue
-	_map map[luaValue]luaValue
+	metaTable *table
+	_arr      []luaValue
+	_map      map[luaValue]luaValue
 }
 
 func newTable(nArr, nRec int) *table {
@@ -75,6 +76,7 @@ func (t *table) put(key, value luaValue) {
 
 	//
 	//存map中的1.key不为整数2.key为整数但超过_arr的长度n个(n>1)
+	//因此table中不存在val为nil的键值对
 	if value == nil {
 		delete(t._map, key) //节省空间
 		return
@@ -112,4 +114,14 @@ func (t *table) expand() {
 
 func (t *table) len() int {
 	return len(t._arr)
+}
+
+func (t *table) hasMetaFunc(key string) bool {
+	if t.metaTable == nil {
+		return false
+	}
+	if val := t.metaTable.get(key); val != nil {
+		return true
+	}
+	return false
 }

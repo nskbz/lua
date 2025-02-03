@@ -68,33 +68,33 @@ var instructions = []opcode{
 	{0, ArgR, ArgU, ArgU, IABC, "NEWTABLE", newTable},   //R(A) := {} (size = B,C)
 	{0, ArgR, ArgR, ArgK, IABC, "SELF    ", self},       // R(A+1) := R(B); R(A) := R(B)[RK(C)]
 	{0, ArgR, ArgRK, ArgRK, IABC, "ADD     ", add},      // R(A) := RK(B) + RK(C)
-	{0, ArgR, ArgRK, ArgRK, IABC, "SUB     ", sub},
-	{0, ArgR, ArgRK, ArgRK, IABC, "MUL     ", mul},
-	{0, ArgR, ArgRK, ArgRK, IABC, "MOD     ", mod},
-	{0, ArgR, ArgRK, ArgRK, IABC, "POW     ", pow},
-	{0, ArgR, ArgRK, ArgRK, IABC, "DIV     ", div},
-	{0, ArgR, ArgRK, ArgRK, IABC, "IDIV    ", idiv},
-	{0, ArgR, ArgRK, ArgRK, IABC, "BAND    ", and},
-	{0, ArgR, ArgRK, ArgRK, IABC, "BOR     ", or},
-	{0, ArgR, ArgRK, ArgRK, IABC, "BXOR    ", xor},
-	{0, ArgR, ArgRK, ArgRK, IABC, "SHL     ", shl},
-	{0, ArgR, ArgRK, ArgRK, IABC, "SHR     ", shr},
-	{0, ArgR, ArgR, ArgN, IABC, "UNM     ", opposite}, // R(A) := -R(B)
-	{0, ArgR, ArgR, ArgN, IABC, "BNOT    ", bnot},     // R(A) := ~R(B)
-	{0, ArgR, ArgR, ArgN, IABC, "NOT     ", not},      // R(A) := not R(B)
-	{0, ArgR, ArgR, ArgN, IABC, "LEN     ", valLen},
-	{0, ArgR, ArgR, ArgR, IABC, "CONCAT  ", concat},
-	{0, ArgU, ArgU, ArgN, IAsBx, "JMP     ", jump}, // pc+=sBx; if (A) close all upvalues >= R(A - 1)
-	{1, ArgU, ArgK, ArgK, IABC, "EQ      ", eq},    // if ((RK(B) == RK(C)) ~= A) then pc++
-	{1, ArgU, ArgK, ArgK, IABC, "LT      ", lt},    // if ((RK(B) <  RK(C)) ~= A) then pc++
-	{1, ArgU, ArgK, ArgK, IABC, "LE      ", le},    // if ((RK(B) <= RK(C)) ~= A) then pc++
-	{1, ArgU, ArgN, ArgU, IABC, "TEST    ", test},
-	{1, ArgR, ArgR, ArgU, IABC, "TESTSET ", testset},
-	{0, ArgR, ArgU, ArgU, IABC, "CALL    ", call},      // R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
-	{0, ArgR, ArgU, ArgU, IABC, "TAILCALL", tailcall},  // return R(A)(R(A+1), ... ,R(A+B-1))
-	{0, ArgU, ArgU, ArgN, IABC, "RETURN  ", luaReturn}, // return R(A),...,R(A+B-2)
-	{0, ArgR, ArgU, ArgN, IAsBx, "FORLOOP ", forLoop},
-	{0, ArgR, ArgU, ArgN, IAsBx, "FORPREP ", forPrep},
+	{0, ArgR, ArgRK, ArgRK, IABC, "SUB     ", sub},      // R(A) := RK(B) - RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "MUL     ", mul},      // R(A) := RK(B) * RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "MOD     ", mod},      // R(A) := RK(B) % RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "POW     ", pow},      // R(A) := RK(B) ^ RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "DIV     ", div},      // R(A) := RK(B) / RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "IDIV    ", idiv},     // R(A) := RK(B) // RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "BAND    ", and},      // R(A) := RK(B) & RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "BOR     ", or},       // R(A) := RK(B) | RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "BXOR    ", xor},      // R(A) := RK(B) ~ RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "SHL     ", shl},      // R(A) := RK(B) << RK(C)
+	{0, ArgR, ArgRK, ArgRK, IABC, "SHR     ", shr},      // R(A) := RK(B) >> RK(C)
+	{0, ArgR, ArgR, ArgN, IABC, "UNM     ", opposite},   // R(A) := -R(B)
+	{0, ArgR, ArgR, ArgN, IABC, "BNOT    ", bnot},       // R(A) := ~R(B)
+	{0, ArgR, ArgR, ArgN, IABC, "NOT     ", not},        // R(A) := not R(B)
+	{0, ArgR, ArgR, ArgN, IABC, "LEN     ", valLen},     // R(A) := length of R(B)
+	{0, ArgR, ArgR, ArgR, IABC, "CONCAT  ", concat},     // R(A) := R(B).. ... ..R(C)
+	{0, ArgU, ArgU, ArgN, IAsBx, "JMP     ", jump},      // pc+=sBx; if (A) close all upvalues >= R(A - 1)
+	{1, ArgU, ArgK, ArgK, IABC, "EQ      ", eq},         // if ((RK(B) == RK(C)) ~= A) then pc++
+	{1, ArgU, ArgK, ArgK, IABC, "LT      ", lt},         // if ((RK(B) <  RK(C)) ~= A) then pc++
+	{1, ArgU, ArgK, ArgK, IABC, "LE      ", le},         // if ((RK(B) <= RK(C)) ~= A) then pc++
+	{1, ArgU, ArgN, ArgU, IABC, "TEST    ", test},       // if not (R(A) <=> C) then pc++
+	{1, ArgR, ArgR, ArgU, IABC, "TESTSET ", testset},    // if (R(B) <=> C) then R(A) := R(B) else pc++
+	{0, ArgR, ArgU, ArgU, IABC, "CALL    ", call},       // R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
+	{0, ArgR, ArgU, ArgU, IABC, "TAILCALL", tailcall},   // return R(A)(R(A+1), ... ,R(A+B-1))
+	{0, ArgU, ArgU, ArgN, IABC, "RETURN  ", luaReturn},  // return R(A),...,R(A+B-2)
+	{0, ArgR, ArgU, ArgN, IAsBx, "FORLOOP ", forLoop},   // R(A)+=R(A+2); if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }
+	{0, ArgR, ArgU, ArgN, IAsBx, "FORPREP ", forPrep},   // R(A)-=R(A+2); pc+=sBx
 	{0, ArgU, ArgN, ArgU, IABC, "TFORCALL", nil},
 	{0, ArgR, ArgU, ArgN, IAsBx, "TFORLOOP", nil},
 	{0, ArgU, ArgU, ArgU, IABC, "SETLIST ", setList}, // R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B

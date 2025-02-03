@@ -34,65 +34,76 @@ var (
 )
 
 type operation struct {
-	i intFunc
-	f floatFunc
+	m string    //元方法
+	i intFunc   //整形参数方法
+	f floatFunc //浮点型参数方法
 }
 
-func doUnitaryArith(val luaValue, op operation) luaValue {
+func doUnitaryArith(val luaValue, op operation, ls *luaState) (luaValue, bool) {
 	if op.f == nil { //位运算 not
 		if x, ok := convertToInteger(val); ok {
-			return op.i(x, 0)
+			return op.i(x, 0), true
 		}
 	} else { //数字运算 opposite
 		if op.i != nil {
 			if x, ok := val.(int64); ok {
-				return op.i(x, 0)
+				return op.i(x, 0), true
 			}
 		}
 		if x, ok := convertToFloat(val); ok {
-			return op.f(x, 0)
+			return op.f(x, 0), true
 		}
 	}
-	return nil
+
+	//上面转换不行则执行该类型的元方法
+	if c := getMetaClosure(ls, op.m, val); c != nil {
+		return callMetaClosure(ls, c, 1, val)[0], true
+	}
+	return nil, false
 }
 
-func doDualArith(a, b luaValue, op operation) luaValue {
+func doDualArith(a, b luaValue, op operation, ls *luaState) (luaValue, bool) {
 	if op.f == nil { //位运算
 		if x, ok := convertToInteger(a); ok {
 			if y, ok := convertToInteger(b); ok {
-				return op.i(x, y)
+				return op.i(x, y), true
 			}
 		}
 	} else { //数字运算
 		if op.i != nil { //add,sub,mul,mod,idiv,opposite
 			if x, ok := a.(int64); ok {
 				if y, ok := b.(int64); ok {
-					return op.i(x, y)
+					return op.i(x, y), true
 				}
 			}
 		}
 		if x, ok := convertToFloat(a); ok {
 			if y, ok := convertToFloat(b); ok {
-				return op.f(x, y)
+				return op.f(x, y), true
 			}
 		}
 	}
-	return nil
+
+	//上面转换不行则执行该类型的元方法
+	if c := getMetaClosure(ls, op.m, a, b); c != nil {
+		return callMetaClosure(ls, c, 1, a, b)[0], true
+	}
+	return nil, false
 }
 
 var arith_operation = map[api.ArithOp]operation{
-	api.ArithOp_ADD:      {iadd, fadd},
-	api.ArithOp_SUB:      {isub, fsub},
-	api.ArithOp_MUL:      {imul, fmul},
-	api.ArithOp_MOD:      {imod, fmod},
-	api.ArithOp_POW:      {nil, pow},
-	api.ArithOp_DIV:      {nil, div},
-	api.ArithOp_IDIV:     {iidiv, fidiv},
-	api.ArithOp_AND:      {and, nil},
-	api.ArithOp_OR:       {or, nil},
-	api.ArithOp_XOR:      {xor, nil},
-	api.ArithOp_SHL:      {shl, nil},
-	api.ArithOp_SHR:      {shr, nil},
-	api.ArithOp_OPPOSITE: {iopposite, fopposite},
-	api.ArithOp_NOT:      {not, nil},
+	api.ArithOp_ADD:      {META_ADD, iadd, fadd},
+	api.ArithOp_SUB:      {META_SUB, isub, fsub},
+	api.ArithOp_MUL:      {META_MUL, imul, fmul},
+	api.ArithOp_MOD:      {META_MOD, imod, fmod},
+	api.ArithOp_POW:      {META_POW, nil, pow},
+	api.ArithOp_DIV:      {META_DIV, nil, div},
+	api.ArithOp_IDIV:     {META_IDIV, iidiv, fidiv},
+	api.ArithOp_AND:      {META_AND, and, nil},
+	api.ArithOp_OR:       {META_OR, or, nil},
+	api.ArithOp_XOR:      {META_XOR, xor, nil},
+	api.ArithOp_SHL:      {META_SHL, shl, nil},
+	api.ArithOp_SHR:      {META_SHR, shr, nil},
+	api.ArithOp_OPPOSITE: {META_OPPOSITE, iopposite, fopposite},
+	api.ArithOp_NOT:      {META_NOT, not, nil},
 }

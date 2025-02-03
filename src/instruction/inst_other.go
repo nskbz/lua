@@ -2,6 +2,7 @@ package instruction
 
 import "nskbz.cn/lua/api"
 
+// R(A) := R(B)
 func move(i Instruction, vm api.LuaVM) {
 	a, b, _ := i.ABC()
 	vm.Copy(b+1, a+1)
@@ -22,6 +23,7 @@ func valLen(i Instruction, vm api.LuaVM) {
 	vm.Replace(a + 1)
 }
 
+// R(A) := R(B).. ... ..R(C)
 func concat(i Instruction, vm api.LuaVM) {
 	a, b, c := i.ABC()
 	a += 1

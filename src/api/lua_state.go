@@ -53,7 +53,7 @@ type LuaState interface {
 	GetTop() int             //获取top index
 	SetTop(idx int)          //设置top index并将其后的出栈
 	AbsIndex(idx int) int    //获取绝对index，返回的合法index应当大于0
-	CheckStack(n int) bool   //检查是否可以容纳n个value,n>0
+	CheckStack(n int)        //检查是否可以容纳n个value,n>0
 	Pop(n int)               //弹出n个val
 	Copy(fromIdx, toIdx int) //将from的val复制到to
 	PushValue(idx int)       //将指定索引的val压入栈顶
@@ -134,4 +134,15 @@ type LuaState interface {
 	 */
 	UpvalueIndex(i int) int //获取Upvalue索引
 	CloseUpvalues(a int)    //取消对>=Upvalue[a-1]的引用
+	/*
+	*	元编程支持
+	 */
+	GetMetaTable(idx int) bool             //如果指定idx值具备元表则将其压入栈并返回true;若没有元表则直接返回false
+	SetMetaTable(idx int)                  //将栈顶的一个值弹出作为指定idx值的元表
+	RawLen(idx int) uint                   //(不使用元方法)返回对应idx的val值的长度
+	RawEqual(idx1, idx2 int) bool          //(不使用元方法)比较idx1和idx2是否相等
+	RawGet(idx int) LuaValueType           //(不使用元方法)获取指定idx的table的stack[top]索引值类型并将其值压入栈(table=stack[idx])：table[stack[top]] ;该方法会弹出一个元素
+	RawSet(idx int)                        //(不使用元方法)设置指定idx的table的键值(table=stack[idx])：table[key]=val (val=stack[top],key=stack[top--]) ;该方法会弹出两个元素
+	RawGetI(idx int, i int64) LuaValueType //(不使用元方法)获取指定idx的table和指定整数键的值类型并将其值压入栈：table[i]
+	RawSetI(idx int, i int64)              //(不使用元方法)设置指定idx的table和指定整数键的值：table[i]=val (val=stack[top])
 }

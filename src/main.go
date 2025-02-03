@@ -22,19 +22,21 @@ func main() {
 	}
 	vm := state.New()
 	vm.Register("print", print)
+	vm.Register("getmetatable", getMetaTable)
+	vm.Register("setmetatable", setMetaTable)
 	vm.Load(datas, "test.lua", "b")
 	vm.Call(0, 0)
 }
 
-func print(ls api.LuaVM) int {
-	nArgs := ls.GetTop()
+func print(vm api.LuaVM) int {
+	nArgs := vm.GetTop()
 	for i := 1; i <= nArgs; i++ {
-		if ls.IsBoolean(i) {
-			fmt.Printf("%t", ls.ToBoolean(i))
-		} else if ls.IsString(i) {
-			fmt.Print(ls.ToString(i))
+		if vm.IsBoolean(i) {
+			fmt.Printf("%t", vm.ToBoolean(i))
+		} else if vm.IsString(i) {
+			fmt.Print(vm.ToString(i))
 		} else {
-			fmt.Print(ls.TypeName(ls.Type(i)))
+			fmt.Print(vm.TypeName(vm.Type(i)))
 		}
 		if i < nArgs {
 			fmt.Print("\t")
@@ -42,4 +44,16 @@ func print(ls api.LuaVM) int {
 	}
 	fmt.Println()
 	return 0
+}
+
+func getMetaTable(vm api.LuaVM) int {
+	if !vm.GetMetaTable(1) {
+		vm.PushNil()
+	}
+	return 1
+}
+
+func setMetaTable(vm api.LuaVM) int {
+	vm.SetMetaTable(1)
+	return 1
 }
