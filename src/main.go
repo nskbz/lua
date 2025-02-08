@@ -27,6 +27,8 @@ func main() {
 	vm.Register("next", next)
 	vm.Register("pairs", pairs)
 	vm.Register("ipairs", iPairs)
+	vm.Register("error", luaError)
+	vm.Register("pcall", pCall)
 	vm.Load(datas, "test.lua", "b")
 	vm.Call(0, 0)
 }
@@ -95,4 +97,16 @@ func iPairs(vm api.LuaVM) int {
 	vm.PushValue(1)
 	vm.PushInteger(0) //index初始化为0
 	return 3
+}
+
+func luaError(vm api.LuaVM) int {
+	return vm.Error()
+}
+
+func pCall(vm api.LuaVM) int {
+	nArgs := vm.GetTop() - 1
+	status := vm.PCall(nArgs, -1, 0)
+	vm.PushBoolean(status == api.LUA_OK)
+	vm.Insert(1)
+	return vm.GetTop()
 }

@@ -31,6 +31,52 @@ func (tp LuaValueType) String() string {
 type ArithOp int   //算术运算与位运算
 type CompareOp int //比较运算
 
+func (arith ArithOp) String() string {
+	switch arith {
+	case ArithOp_ADD:
+		return "ADD"
+	case ArithOp_SUB:
+		return "SUB"
+	case ArithOp_MUL:
+		return "MUL"
+	case ArithOp_MOD:
+		return "MOD"
+	case ArithOp_POW:
+		return "POW"
+	case ArithOp_DIV:
+		return "DIV"
+	case ArithOp_IDIV:
+		return "Downward DIV"
+	case ArithOp_AND:
+		return "Bit:and"
+	case ArithOp_OR:
+		return "Bit:or"
+	case ArithOp_XOR:
+		return "Bit:xor"
+	case ArithOp_SHL:
+		return "Bit:left shift"
+	case ArithOp_SHR:
+		return "Bit:right shift"
+	case ArithOp_OPPOSITE:
+		return "Take the opposite number"
+	case ArithOp_NOT:
+		return "Bit:not"
+	}
+	return "Unknown"
+}
+
+func (compare CompareOp) String() string {
+	switch compare {
+	case CompareOp_EQ:
+		return "Equal"
+	case CompareOp_LT:
+		return "Less than"
+	case CompareOp_LE:
+		return "Less or Equal"
+	}
+	return "Unknown"
+}
+
 // Go函数;return返回值的个数
 type GoFunc func(LuaVM) int
 
@@ -113,7 +159,7 @@ type LuaState interface {
 	*	函数调用
 	 */
 	Load(chunk []byte, chunckName, mode string) int //加载chunk获得对应的closure并将其压入栈
-	//lua函数：将nArgs+1数量的val弹出作为函数及其参数，执行closure，最后将nResults数量的结果值压入栈
+	//lua函数：将nArgs+1数量的val弹出作为函数及其参数，执行closure，最后将nResults数量的结果值压入栈(nResults<0则压入所有返回值)
 	//go函数：将nArgs数量的val弹出作为外部Go函数的参数，执行Go函数并将所有返回值都压入栈中
 	Call(nArgs, nResults int)
 	/*
@@ -151,4 +197,9 @@ type LuaState interface {
 	//true：将指定idx对应table的key=stack[top]的下一个nextkey和其value压入栈顶(nextkey=top-1;value=top)
 	//false：nextkey==nil,循环结束
 	Next(idx int) bool
+	/*
+	*	异常处理支持
+	 */
+	Error() int //弹出栈顶值作为错误抛出
+	PCall(nArgs, nResults, msgh int) int
 }

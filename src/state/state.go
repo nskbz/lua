@@ -302,7 +302,7 @@ func (s *luaState) ToStringX(idx int) (string, bool) {
 func (s *luaState) Arith(op api.ArithOp) {
 	operation, ok := arith_operation[op]
 	if !ok {
-		panic(fmt.Sprintf("no supported arith for %d", op))
+		panic(fmt.Sprintf("no supported arith for %s", op.String()))
 	}
 	var result luaValue
 	var success bool
@@ -316,7 +316,7 @@ func (s *luaState) Arith(op api.ArithOp) {
 	}
 
 	if !success {
-		panic(fmt.Sprintf("Arith error =>%d", op))
+		panic(fmt.Sprintf("Arith error =>%s", op.String()))
 	}
 	s.stack.push(result) //结果压入栈
 }
@@ -332,7 +332,7 @@ func (s *luaState) Compare(idx1, idx2 int, op api.CompareOp) bool {
 	case api.CompareOp_LE:
 		return doLe(a, b, s)
 	}
-	panic(fmt.Sprintf("no supported compare for %d", op))
+	panic(fmt.Sprintf("no supported compare for %s", op.String()))
 }
 
 func (s *luaState) Len(idx int) {
@@ -527,7 +527,7 @@ func (s *luaState) Load(chunk []byte, chunckName, mode string) int {
 		c.upvals[0] = upvalue{&env}
 	}
 	s.stack.push(c)
-	return 0
+	return api.LUA_OK
 }
 
 func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
@@ -553,7 +553,7 @@ func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
 	if nResults != 0 {
 		results := stack.popN(stack.top - stackSize)
 		s.CheckStack(len(results))
-		s.stack.pushN(results, nResults)
+		s.stack.pushN(results, nResults) //nResults<0则返回值全部压入
 	}
 }
 
@@ -582,7 +582,7 @@ func (s *luaState) doGoFunc(nResults int, c *closure, args []luaValue) {
 	if nResults != 0 {
 		results := stack.popN(nr)
 		s.CheckStack(len(results))
-		s.stack.pushN(results, nResults)
+		s.stack.pushN(results, nResults) //nResults<0则返回值全部压入
 	}
 }
 
@@ -757,4 +757,28 @@ func (s *luaState) Next(idx int) bool {
 	}
 
 	panic(fmt.Sprintf("stack[%d] is not a table", absidx))
+}
+
+/*
+*	异常处理支持
+ */
+func (s *luaState) Error() int {
+	err := s.stack.pop() //默认错误在栈顶
+	panic(err)
+}
+
+func (s *luaState) PCall(nArgs, nResults, msgh int) (status int) {
+	status = api.LUA_ERR_RUN
+	caller := s.stack //存储调用函数栈
+	defer func() {
+		if err := recover(); err != nil {
+			for s.stack != caller {
+				s.popContext()
+			} //恢复至调用函数上下文
+			s.stack.push(err) //在调用函数栈中压入err
+		}
+	}()
+	s.Call(nArgs, nResults)
+	status = api.LUA_OK
+	return
 }
