@@ -130,3 +130,31 @@ func self(i Instruction, vm api.LuaVM) {
 	vm.GetTable(b)
 	vm.Replace(a)
 }
+
+// R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2))
+func tForCall(i Instruction, vm api.LuaVM) {
+	a, _, c := i.ABC()
+	a += 1
+
+	vm.CheckStack(3)
+	vm.PushValue(a)
+	vm.PushValue(a + 1)
+	vm.PushValue(a + 2)
+	vm.Call(2, c)
+
+	for i := a + c + 2; i >= a+3; i-- {
+		vm.Replace(i)
+	}
+}
+
+// if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }
+func tForLoop(i Instruction, vm api.LuaVM) {
+	a, sbx := i.AsBx()
+	a += 1
+
+	if !vm.IsNil(a + 1) {
+		vm.Copy(a+1, a)
+		vm.AddPC(sbx)
+	}
+
+}

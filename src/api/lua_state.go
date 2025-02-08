@@ -103,7 +103,7 @@ type LuaState interface {
 	 */
 	NewTable()
 	CreateTable(nArr, nRec int)              //创建table并将其压入栈顶
-	GetTable(idx int) LuaValueType           //获取指定idx的table的stack[top]索引值类型并将其值压入栈(table=stack[idx])：table[stack[top]] ;该方法会弹出一个元素
+	GetTable(idx int) LuaValueType           //获取指定idx对应table的(stack[top])索引值类型并将其值压入栈(table=stack[idx])：table[stack[top]] ;该方法会弹出一个元素
 	GetField(idx int, k string) LuaValueType //获取指定idx的table和指定字符串键的值类型并将其值压入栈：table[k]
 	GetI(idx int, i int64) LuaValueType      //获取指定idx的table和指定整数键的值类型并将其值压入栈：table[i]
 	SetTable(idx int)                        //设置指定idx的table的键值(table=stack[idx])：table[key]=val (val=stack[top],key=stack[top--]) ;该方法会弹出两个元素
@@ -119,7 +119,7 @@ type LuaState interface {
 	/*
 	*	Go函数支持
 	 */
-	PushGoFunction(gf GoFunc, n int)
+	PushGoFunction(gf GoFunc, n int) //弹出n个val作为gofunc的Upvalue(捕获变量)，然后压入gofunc
 	IsGoFunction(idx int) bool
 	ToGoFunction(idx int) GoFunc
 	/*
@@ -145,4 +145,10 @@ type LuaState interface {
 	RawSet(idx int)                        //(不使用元方法)设置指定idx的table的键值(table=stack[idx])：table[key]=val (val=stack[top],key=stack[top--]) ;该方法会弹出两个元素
 	RawGetI(idx int, i int64) LuaValueType //(不使用元方法)获取指定idx的table和指定整数键的值类型并将其值压入栈：table[i]
 	RawSetI(idx int, i int64)              //(不使用元方法)设置指定idx的table和指定整数键的值：table[i]=val (val=stack[top])
+	/*
+	*	通用for循环支持
+	 */
+	//true：将指定idx对应table的key=stack[top]的下一个nextkey和其value压入栈顶(nextkey=top-1;value=top)
+	//false：nextkey==nil,循环结束
+	Next(idx int) bool
 }

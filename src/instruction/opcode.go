@@ -95,10 +95,10 @@ var instructions = []opcode{
 	{0, ArgU, ArgU, ArgN, IABC, "RETURN  ", luaReturn},  // return R(A),...,R(A+B-2)
 	{0, ArgR, ArgU, ArgN, IAsBx, "FORLOOP ", forLoop},   // R(A)+=R(A+2); if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }
 	{0, ArgR, ArgU, ArgN, IAsBx, "FORPREP ", forPrep},   // R(A)-=R(A+2); pc+=sBx
-	{0, ArgU, ArgN, ArgU, IABC, "TFORCALL", nil},
-	{0, ArgR, ArgU, ArgN, IAsBx, "TFORLOOP", nil},
-	{0, ArgU, ArgU, ArgU, IABC, "SETLIST ", setList}, // R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
-	{0, ArgR, ArgU, ArgN, IABx, "CLOSURE ", closure}, //R(A) := closure(KPROTO[Bx])
-	{0, ArgR, ArgU, ArgN, IABC, "VARARG  ", vararg},  // R(A), R(A+1), ..., R(A+B-2) = vararg
+	{0, ArgR, ArgN, ArgU, IABC, "TFORCALL", tForCall},   // R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2))
+	{0, ArgR, ArgU, ArgN, IAsBx, "TFORLOOP", tForLoop},  // if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }
+	{0, ArgU, ArgU, ArgU, IABC, "SETLIST ", setList},    // R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
+	{0, ArgR, ArgU, ArgN, IABx, "CLOSURE ", closure},    //R(A) := closure(KPROTO[Bx])
+	{0, ArgR, ArgU, ArgN, IABC, "VARARG  ", vararg},     // R(A), R(A+1), ..., R(A+B-2) = vararg
 	{0, ArgU, ArgU, ArgU, IAx, "EXTRAARG", nil},
 }

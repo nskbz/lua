@@ -593,12 +593,11 @@ func (s *luaState) Call(nArgs, nResults int) {
 	if !ok {
 		if mc := getMetaClosure(s, META_CALL, vals[0]); mc == nil {
 			//不是函数且没有META_CALL元方法报错
-			//panic(fmt.Sprintf("[%s] is not a closure", typeOf(vals[0]).String()))
+			panic(fmt.Sprintf("[%s] is not a closure", typeOf(vals[0]).String()))
 		} else {
 			if _c, ok := mc.(*closure); ok {
 				c = _c
 				vals = append([]luaValue{nil}, vals...)
-				// nArgs += 1
 			}
 		}
 	}
@@ -736,4 +735,26 @@ func (s *luaState) RawSetI(idx int, i int64) {
 	t := s.stack.get(absidx)
 	v := s.stack.pop()
 	s.setTableKV(t, i, v, true)
+}
+
+/*
+*	通用for循环支持
+ */
+func (s *luaState) Next(idx int) bool {
+	absidx := s.AbsIndex(idx)
+	val := s.stack.get(absidx)
+
+	if t, ok := val.(*table); ok {
+		k := s.stack.pop()
+		nk := t.nextKey(k)
+		nv := t.get(nk)
+		if nk == nil {
+			return false
+		}
+		s.stack.push(nk)
+		s.stack.push(nv)
+		return true
+	}
+
+	panic(fmt.Sprintf("stack[%d] is not a table", absidx))
 }

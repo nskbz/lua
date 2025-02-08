@@ -7,9 +7,11 @@ import (
 )
 
 type table struct {
-	metaTable *table
-	_arr      []luaValue
-	_map      map[luaValue]luaValue
+	metaTable *table                //元方法表
+	_arr      []luaValue            //顺序数组下标的key
+	_map      map[luaValue]luaValue //非顺序数组下标的key
+
+	keys map[luaValue]luaValue //key的顺序
 }
 
 func newTable(nArr, nRec int) *table {
@@ -34,9 +36,6 @@ func (t *table) get(key luaValue) luaValue {
 // 返回0表示key不能转换为int
 func keyToInt(key luaValue) int64 {
 	var idx int64 = 0
-	if key == nil {
-		panic("error table key [nil]")
-	}
 	if v, ok := key.(float64); ok {
 		if math.IsNaN(v) {
 			panic("error table key [NaN]")
@@ -74,9 +73,9 @@ func (t *table) put(key, value luaValue) {
 		return
 	}
 
-	//
 	//存map中的1.key不为整数2.key为整数但超过_arr的长度n个(n>1)
-	//因此table中不存在val为nil的键值对
+	//
+	//table中不存在val为nil的键值对
 	if value == nil {
 		delete(t._map, key) //节省空间
 		return
@@ -87,6 +86,9 @@ func (t *table) put(key, value luaValue) {
 		t._map = make(map[luaValue]luaValue, 8)
 	}
 	t._map[key] = value
+
+	//改变table结构后key的顺序可能发生变化需要重新init
+	t.keys = nil
 }
 
 // 消除arr尾部nil元素
@@ -124,4 +126,50 @@ func (t *table) hasMetaFunc(key string) bool {
 		return true
 	}
 	return false
+}
+
+// func (t *table) _initKeys() {
+// 	//table结构并未发生改变不需要重新init
+// 	if t.keys != nil {
+// 		return
+// 	}
+// 	keys := make(map[luaValue]luaValue)
+// 	var key luaValue = nil
+// 	for i, v := range t._arr {
+// 		if v != nil {
+// 			keys[key] = int64(i + 1)
+// 			key = int64(i + 1)
+// 		}
+// 	}
+// 	for k, v := range t._map {
+// 		if v != nil {
+// 			keys[key] = k
+// 			key = k
+// 		}
+// 	}
+
+// 	t.keys = keys
+// }
+
+func (t *table) nextKey(k luaValue) luaValue {
+	//table结构发生改变需要重新init
+	if t.keys == nil {
+		keys := make(map[luaValue]luaValue)
+		var key luaValue = nil
+		for i, v := range t._arr {
+			if v != nil {
+				keys[key] = int64(i + 1)
+				key = int64(i + 1)
+			}
+		}
+		for k, v := range t._map {
+			if v != nil {
+				keys[key] = k
+				key = k
+			}
+		}
+
+		t.keys = keys
+	}
+	return t.keys[k]
 }
