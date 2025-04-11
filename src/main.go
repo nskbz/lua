@@ -1,36 +1,98 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
 
 	"nskbz.cn/lua/api"
+	"nskbz.cn/lua/compile/lexer"
 	"nskbz.cn/lua/state"
 )
 
+// var reDecEscapeSeq = regexp.MustCompile(`^\\[0-9]{1,3}`)          //十进制ASCII码
+// var reHexEscapeSeq = regexp.MustCompile(`^\\x[0-9a-fA-F]{2}`)     //十六进制ASCII码
+// var reUnicodeEscapeSeq = regexp.MustCompile(`^\\u{[0-9a-fA-F]+}`) //unicode码
+
 func main() {
-	f, err := os.Open("../luac.out")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	var chunk, source string
+	var run, compile bool
+	flag.BoolVar(&run, "r", false, "...")
+	flag.BoolVar(&compile, "c", false, "...")
+	flag.StringVar(&chunk, "i", "../luac.out", "执行的chunk文件")
+	flag.StringVar(&source, "s", "../test.lua", "需要编译的原文件")
+	flag.Parse()
+	if run {
+		fmt.Printf("chunck file====>[%s]\n", chunk)
+		f, err := os.Open(chunk)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		datas, err := io.ReadAll(f)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		vm := state.New()
+		vm.Register("print", print)
+		vm.Register("getmetatable", getMetaTable)
+		vm.Register("setmetatable", setMetaTable)
+		vm.Register("next", next)
+		vm.Register("pairs", pairs)
+		vm.Register("ipairs", iPairs)
+		vm.Register("error", luaError)
+		vm.Register("pcall", pCall)
+		vm.Load(datas, "test.lua", "b")
+		vm.Call(0, 0)
+	} else if compile {
+		fmt.Printf("source file====>[%s]\n", source)
+		f, err := os.Open(source)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		datas, err := io.ReadAll(f)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		testLexer(datas, source)
 	}
-	datas, err := io.ReadAll(f)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+}
+
+func testLexer(data []byte, name string) {
+	l := lexer.NewLexer(data, name)
+
+	for {
+		t := l.NextToken()
+		fmt.Printf("[%2d] [%-10s] %s\n", t.Line(), tokenKindToCategory(t.Kind()), t.Val())
+		if t.Kind() == lexer.TOKEN_EOF {
+			break
+		}
 	}
-	vm := state.New()
-	vm.Register("print", print)
-	vm.Register("getmetatable", getMetaTable)
-	vm.Register("setmetatable", setMetaTable)
-	vm.Register("next", next)
-	vm.Register("pairs", pairs)
-	vm.Register("ipairs", iPairs)
-	vm.Register("error", luaError)
-	vm.Register("pcall", pCall)
-	vm.Load(datas, "test.lua", "b")
-	vm.Call(0, 0)
+}
+
+func tokenKindToCategory(kind int) string {
+	switch {
+	case kind < lexer.TOKEN_SEP_SEMI:
+		return "other"
+	case kind <= lexer.TOKEN_SEP_RCURLY:
+		return "separator"
+	case kind <= lexer.TOKEN_OP_NOT:
+		return "operator"
+	case kind <= lexer.TOKEN_KW_WHILE:
+		return "keyword"
+	case kind == lexer.TOKEN_IDENTIFIER:
+		return "identifier"
+	case kind == lexer.TOKEN_NUMBER:
+		return "number"
+	case kind == lexer.TOKEN_STRING:
+		return "string"
+	default:
+		return "other"
+	}
 }
 
 func print(vm api.LuaVM) int {
