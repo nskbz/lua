@@ -150,35 +150,6 @@ func (l *Lexer) scanShortString() string {
 	}
 	l.error("scan short string error")
 	return ""
-	// format := false //记录短字符串格式是否正确
-	// sb := strings.Builder{}
-	// var sparator string
-	// if l.test("'") {
-	// 	sparator = "'"
-	// } else if l.test("\"") {
-	// 	sparator = "\""
-	// } else {
-	// 	l.error("prefix error")
-	// }
-
-	// l.next(1)
-	// for !l.empty() {
-	// 	if l.test(sparator) {
-	// 		format = true
-	// 		l.next(1)
-	// 		break
-	// 	}
-	// 	sb.WriteByte(l.char())
-	// 	l.next(1)
-	// }
-
-	// if !format {
-	// 	l.error("suffix error")
-	// }
-
-	// //处理转义序列
-	// str := sb.String()
-	// return l.escape(str)
 }
 
 // 转义处理
