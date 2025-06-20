@@ -441,17 +441,29 @@ func (l *Lexer) LookToken() Token {
 	return token
 }
 
-// 判断下一个TOKEN是否为kind类型
+// 断言下一个TOKEN为kind类型
+// 不是则终止
 func (l *Lexer) AssertToken(kind int) *Token {
 	t := l.LookToken()
 	if t.kind != kind {
-		return nil
+		panic(fmt.Sprintf("real type[%d] != excepted type[%d]", t.kind, kind))
 	}
 	return &t
 }
 
+func (l *Lexer) CheckToken(kind int) bool {
+	t := l.LookToken()
+	return t.Kind() == kind
+}
+
 func (l *Lexer) AssertIdentifier() Token {
 	return *l.AssertToken(TOKEN_IDENTIFIER)
+}
+
+func (l *Lexer) AssertAndSkipToken(kind int) *Token {
+	t := l.AssertToken(kind)
+	l.NextToken()
+	return t
 }
 
 func checkWhiteSpace(c byte) bool {

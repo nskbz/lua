@@ -2,43 +2,46 @@ package lexer
 
 // token kind
 const (
-	TOKEN_EOF         = iota           // end-of-file
-	TOKEN_VARARG                       // ...
-	TOKEN_SEP_SEMI                     // ;
-	TOKEN_SEP_COMMA                    // ,
-	TOKEN_SEP_DOT                      // .
-	TOKEN_SEP_COLON                    // :
-	TOKEN_SEP_LABEL                    // ::
-	TOKEN_SEP_LPAREN                   // (
-	TOKEN_SEP_RPAREN                   // )
-	TOKEN_SEP_LBRACK                   // [
-	TOKEN_SEP_RBRACK                   // ]
-	TOKEN_SEP_LCURLY                   // {
-	TOKEN_SEP_RCURLY                   // }
-	TOKEN_OP_ASSIGN                    // =
-	TOKEN_OP_MINUS                     // - (sub or unm)
-	TOKEN_OP_WAVE                      // ~ (bnot or bxor)注意lua不是使用的!
-	TOKEN_OP_ADD                       // +
-	TOKEN_OP_MUL                       // *
-	TOKEN_OP_DIV                       // /
-	TOKEN_OP_IDIV                      // //
-	TOKEN_OP_POW                       // ^
-	TOKEN_OP_MOD                       // %
-	TOKEN_OP_BAND                      // &
-	TOKEN_OP_BOR                       // |
-	TOKEN_OP_SHR                       // >>
-	TOKEN_OP_SHL                       // <<
-	TOKEN_OP_CONCAT                    // ..
-	TOKEN_OP_LT                        // <
-	TOKEN_OP_LE                        // <=
-	TOKEN_OP_GT                        // >
-	TOKEN_OP_GE                        // >=
-	TOKEN_OP_EQ                        // ==
-	TOKEN_OP_NE                        // ~=
-	TOKEN_OP_LEN                       // #
-	TOKEN_OP_AND                       // and
-	TOKEN_OP_OR                        // or
-	TOKEN_OP_NOT                       // not
+	TOKEN_EOF    = iota // end-of-file
+	TOKEN_VARARG        // ...
+	// SEP == separator
+	TOKEN_SEP_SEMI   // ;
+	TOKEN_SEP_COMMA  // ,
+	TOKEN_SEP_DOT    // .
+	TOKEN_SEP_COLON  // :
+	TOKEN_SEP_LABEL  // ::
+	TOKEN_SEP_LPAREN // (
+	TOKEN_SEP_RPAREN // )
+	TOKEN_SEP_LBRACK // [
+	TOKEN_SEP_RBRACK // ]
+	TOKEN_SEP_LCURLY // {
+	TOKEN_SEP_RCURLY // }
+	// OP == operator
+	TOKEN_OP_ASSIGN // =
+	TOKEN_OP_MINUS  // - (sub or unm)
+	TOKEN_OP_WAVE   // ~ (bnot or bxor)注意lua不是使用的!
+	TOKEN_OP_ADD    // +
+	TOKEN_OP_MUL    // *
+	TOKEN_OP_DIV    // /
+	TOKEN_OP_IDIV   // //
+	TOKEN_OP_POW    // ^
+	TOKEN_OP_MOD    // %
+	TOKEN_OP_BAND   // &
+	TOKEN_OP_BOR    // |
+	TOKEN_OP_SHR    // >>
+	TOKEN_OP_SHL    // <<
+	TOKEN_OP_CONCAT // ..
+	TOKEN_OP_LT     // <
+	TOKEN_OP_LE     // <=
+	TOKEN_OP_GT     // >
+	TOKEN_OP_GE     // >=
+	TOKEN_OP_EQ     // ==
+	TOKEN_OP_NE     // ~=
+	TOKEN_OP_LEN    // #
+	TOKEN_OP_AND    // and
+	TOKEN_OP_OR     // or
+	TOKEN_OP_NOT    // not
+	// KW == keyword
 	TOKEN_KW_BREAK                     // break
 	TOKEN_KW_DO                        // do
 	TOKEN_KW_ELSE                      // else

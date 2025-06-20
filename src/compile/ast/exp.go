@@ -52,13 +52,13 @@ type VarargExp struct{ Line int }
 运算符表达式
 exp ::=exp binop exp | unop exp
 */
-type UnitaryArithExp struct {
+type UnitaryOpExp struct {
 	Line int
 	Op   int //运算符标号
 	A    Exp
 } //单目运算符，只有一个表达式(操作数)A
 
-type DualArithExp struct {
+type DualOpExp struct {
 	Line int
 	Op   int //运算符标号
 	A    Exp
@@ -98,12 +98,24 @@ type TableConstructExp struct {
 	Val      []Exp
 }
 
-// 函数构造表达式
+// 函数定义表达式
 // functiondef ::= function funcbody
 // funcbody ::= ‘(’ [parlist] ‘)’ block end
 // parlist ::= namelist [‘,’ ‘...’] | ‘...’
 // namelist ::= Name {‘,’ Name}
-type FuncConstructExp struct {
+//
+// for example:
+// local function max(num1, num2)
+//
+//	   if (num1 > num2) then
+//	      result = num1;
+//	   else
+//	      result = num2;
+//	   end
+//		return result;
+//
+// end
+type FuncDefExp struct {
 	Line     int // line of  'function'
 	LastLine int // line of 'end'
 	ParList  []string
@@ -122,15 +134,16 @@ prefixexp ::= Name
 	| prefixexp ':' Name args
 	| prefixexp args
 */
-type ParensExp struct {
+type PrefixExp struct {
 	Exp Exp
 }
 
 // 表访问表达式
+// PrefixExp.CurrentExp
 type TableAccessExp struct {
-	LastLine  int // line of ']'
-	PrefixExp Exp
-	KeyExp    Exp
+	LastLine   int // line of ']'
+	PrefixExp  Exp //'.'前一个表达式
+	CurrentExp Exp //当前表达式
 }
 
 // 函数调用表达式
@@ -141,7 +154,7 @@ type FuncCallExp struct {
 	LastLine  int // line of ')'
 	PrefixExp Exp
 	NameExp   *StringExp
-	Args      []Exp
+	Exps      []Exp
 	// TableConstructor *TableConstructExp
 	// LiteralString    *StringExp
 }
