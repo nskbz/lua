@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 
 	"nskbz.cn/lua/api"
 	"nskbz.cn/lua/compile/lexer"
+	"nskbz.cn/lua/compile/parser"
 	"nskbz.cn/lua/state"
 )
 
@@ -58,8 +60,18 @@ func main() {
 			fmt.Println(err.Error())
 			return
 		}
-		testLexer(datas, source)
+		//testLexer(datas, source)
+		testParser(datas, source)
 	}
+}
+
+func testParser(data []byte, name string) {
+	ast := parser.Parse(data, name)
+	b, err := json.MarshalIndent(ast, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(b))
 }
 
 func testLexer(data []byte, name string) {

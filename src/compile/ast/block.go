@@ -8,7 +8,7 @@ retstat ::= return [explist] [‘;’]
 explist ::= exp {‘,’ exp}
 */
 type Block struct {
-	LastLine int
+	LastLine int //?for what
 	Stats    []Stat
 	RetExps  []Exp
 }

@@ -1,4 +1,8 @@
 *.out
-*.lua
+
+*.json
+
+*lua
+!/src/test/*.lua
 
 .vscode
