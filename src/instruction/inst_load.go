@@ -1,6 +1,8 @@
 package instruction
 
-import "nskbz.cn/lua/api"
+import (
+	"nskbz.cn/lua/api"
+)
 
 // R(A), R(A+1), ..., R(A+B) := nil
 func loadNil(i Instruction, vm api.LuaVM) {
@@ -33,6 +35,7 @@ func loadK(i Instruction, vm api.LuaVM) {
 // R(A) := Kst(extra arg)
 func loadKX(i Instruction, vm api.LuaVM) {
 	a, _ := i.ABx()
+	//获取EXTRAARG指令
 	ex := Instruction(vm.Fetch())
 	ax := ex.Ax()
 	vm.GetConst(ax)

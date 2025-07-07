@@ -27,6 +27,7 @@ func parsePrefixExp(l *lexer.Lexer) ast.Exp {
 }
 
 func _finishPrefixExp(l *lexer.Lexer, exp ast.Exp) ast.Exp {
+	//exp进来的类型为NameExp | ParenExp
 	for {
 		if l.CheckToken(lexer.TOKEN_SEP_DOT) {
 			l.NextToken() //skip '.'
@@ -34,9 +35,9 @@ func _finishPrefixExp(l *lexer.Lexer, exp ast.Exp) ast.Exp {
 			exp = &ast.TableAccessExp{
 				LastLine:  identifier.Line(),
 				PrefixExp: exp,
-				CurrentExp: &ast.NameExp{
+				CurrentExp: &ast.StringExp{
 					Line: identifier.Line(),
-					Name: identifier.Val(),
+					Str:  identifier.Val(),
 				},
 			}
 		} else if l.CheckToken(lexer.TOKEN_SEP_LBRACK) {
@@ -54,9 +55,9 @@ func _finishPrefixExp(l *lexer.Lexer, exp ast.Exp) ast.Exp {
 			exp = &ast.TableAccessExp{
 				LastLine:  l.Line(),
 				PrefixExp: exp,
-				CurrentExp: &ast.NameExp{
+				CurrentExp: &ast.StringExp{
 					Line: l.Line(),
-					Name: key.Val(),
+					Str:  key.Val(),
 				},
 			}
 		} else if l.CheckToken(lexer.TOKEN_SEP_LPAREN) { // myfunc ("hello")

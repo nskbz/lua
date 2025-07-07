@@ -1,7 +1,10 @@
 package state
 
 import (
+	"fmt"
 	"math"
+
+	"nskbz.cn/lua/instruction"
 )
 
 func (s *luaState) PC() int {
@@ -16,30 +19,32 @@ func (s *luaState) AddPC(n int) {
 	s.stack.pc = add
 }
 
+// 获取一条指令同时PC++
 func (s *luaState) Fetch() uint32 {
 	code := s.stack.closure.proto.Codes[s.PC()]
 	s.AddPC(1)
-	return code
+	return uint32(code)
 }
 
 func (s *luaState) GetConst(idx int) {
 	if idx < 0 || idx >= len(s.stack.closure.proto.Constants) {
-		panic("constant's index out of range")
+		panic(fmt.Sprintf("constant index[%d] out of range", idx))
 	}
 	c := s.stack.closure.proto.Constants[idx]
 	s.stack.push(c)
 }
 
-func (s *luaState) GetRK(arg int) {
-	if arg > 0xFF {
-		//最高位不为0表示常量表索引
-		s.GetConst(arg & 0xFF)
-	} else {
+func (s *luaState) GetRK(rk int) {
+	if rk < instruction.ConstantBase { //这里解释了为什么cg(代码生成)阶段,注册常量时需要加上256
 		//最高位为0表示寄存器索引
-		s.PushValue(arg + 1)
+		s.PushValue(rk + 1)
+	} else {
+		//最高位不为0表示常量表索引
+		s.GetConst(rk & 0xFF)
 	}
 }
 
+// 捕获外部变量
 func (s *luaState) LoadProto(idx int) {
 	proto := s.stack.closure.proto.Protos[idx]
 	c := newLuaClosure(proto)

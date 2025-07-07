@@ -6,8 +6,8 @@ import (
 )
 
 func Parse(chunk []byte, chunkName string) *ast.Block {
-	l := lexer.NewLexer(chunk, chunkName)
-	block := parseBlock(l)
+	l := lexer.NewLexer(chunk, chunkName) //词法分析
+	block := parseBlock(l)                //语法分析
 	l.AssertAndSkipToken(lexer.TOKEN_EOF)
 	return block
 }

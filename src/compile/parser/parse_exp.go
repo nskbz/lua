@@ -74,10 +74,17 @@ func parseParamList(l *lexer.Lexer) (names []string, hasVararg bool) {
 }
 
 // 这个方法只解析方法体即function和方法名后面的部分
-//
 // (parList) block end
-func parseFuncDefExp(l *lexer.Lexer) ast.Exp {
-	line := l.Line()                             //记录函数定义开始的行号
+//
+// for example:
+// -- 将匿名函数（没有函数名只有定义）赋值给变量，右侧就是表达式，即函数定义
+// local myFunc = function(a, b)
+//
+//	return a + b
+//
+// end
+// print(myFunc(3, 5))  -- 输出: 8
+func parseFuncDefExp(l *lexer.Lexer, lineForFunc int) ast.Exp {
 	l.AssertAndSkipToken(lexer.TOKEN_SEP_LPAREN) //skip '('
 	pars, hasVararg := parseParamList(l)
 	l.AssertAndSkipToken(lexer.TOKEN_SEP_RPAREN) //skip ')'
@@ -85,9 +92,9 @@ func parseFuncDefExp(l *lexer.Lexer) ast.Exp {
 	block := parseBlock(l)
 	lastLine := l.AssertAndSkipToken(lexer.TOKEN_KW_END).Line()
 	return &ast.FuncDefExp{
-		Line:     line,
+		DefLine:  lineForFunc,
 		LastLine: lastLine,
-		ParList:  pars,
+		ArgList:  pars,
 		IsVararg: hasVararg,
 		Block:    block,
 	}
@@ -304,6 +311,20 @@ func _parseExp3(l *lexer.Lexer) ast.Exp {
 // 这些都是右结合的运算符
 func _parseExp2(l *lexer.Lexer) ast.Exp {
 	exp := _parseExp1(l)
+	//如果exp不为空则说明应当为减法而非负数
+	if exp != nil {
+		return exp
+	}
+
+	// if exp!=nil &&l.CheckToken(lexer.TOKEN_OP_SUB){
+	// 	t := l.NextToken()//skip '-'
+	// 	exp =&ast.DualOpExp{
+	// 		Line: t.Line(),
+	// 		Op: t.Kind(),
+	// 		A: exp,
+	// 		B: _parseExp2(l),
+	// 	}
+	// }
 	if l.CheckToken(lexer.TOKEN_OP_NOT) || l.CheckToken(lexer.TOKEN_OP_LEN) ||
 		l.CheckToken(lexer.TOKEN_OP_UNM) || l.CheckToken(lexer.TOKEN_OP_BNOT) {
 		t := l.NextToken()
@@ -358,13 +379,8 @@ func _parseExp0(l *lexer.Lexer) ast.Exp {
 	case lexer.TOKEN_SEP_LCURLY:
 		return parseTableConstructorExp(l)
 	case lexer.TOKEN_KW_FUNCTION:
-		// -- 将匿名函数（没有函数名只有定义）赋值给变量，右侧就是表达式，即函数定义
-		// local myFunc = function(a, b)
-		//     return a + b
-		// end
-		// print(myFunc(3, 5))  -- 输出: 8
-		l.NextToken() //skip 'function'
-		return parseFuncDefExp(l)
+		lineOfFunc := l.AssertAndSkipToken(lexer.TOKEN_KW_FUNCTION).Line() //记录函数定义开始的行号
+		return parseFuncDefExp(l, lineOfFunc)
 	default:
 		return parsePrefixExp(l)
 	}
@@ -462,8 +478,8 @@ func parseTableConstructorExp(l *lexer.Lexer) ast.Exp {
 	return &ast.TableConstructExp{
 		Line:     line,
 		LastLine: l.Line(),
-		Key:      keys,
-		Val:      values,
+		Keys:     keys,
+		Vals:     values,
 	}
 }
 

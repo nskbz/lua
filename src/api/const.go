@@ -39,8 +39,8 @@ const (
 
 /*
 *	Index:
-*	[-∞,-LUA_MAX_STACK - 1000)∪[-LUA_MAX_STACK ,LUA_MAX_STACK ]
- *	UpvalIdx∪AbsIdx
+*	[-∞,-LUA_MAX_STACK - 1000) ∪ [-LUA_MAX_STACK ,LUA_MAX_STACK ]
+ *	UpvalIdx ∪ AbsIdx
 */
 const LUA_MIN_STACK = 20
 const LUA_MAX_STACK = 1000000

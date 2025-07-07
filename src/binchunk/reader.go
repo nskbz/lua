@@ -3,6 +3,8 @@ package binchunk
 import (
 	"encoding/binary"
 	"math"
+
+	"nskbz.cn/lua/instruction"
 )
 
 func Undump(datas []byte) *Prototype {
@@ -99,11 +101,11 @@ func (r *reader) readString() string {
 	return s
 }
 
-func (r *reader) readCodes() []uint32 {
+func (r *reader) readCodes() []instruction.Instruction {
 	length := r.readUint32()
-	codes := make([]uint32, length)
+	codes := make([]instruction.Instruction, length)
 	for i := 0; i < int(length); i++ {
-		codes[i] = r.readUint32()
+		codes[i] = instruction.Instruction(r.readUint32())
 	}
 	return codes
 }
@@ -169,9 +171,9 @@ func (r *reader) readLocVars() []LocVar {
 	lvs := make([]LocVar, length)
 	for i := 0; i < int(length); i++ {
 		lvs[i] = LocVar{
-			VarName: r.readString(),
-			StartPC: r.readUint32(),
-			EndPC:   r.readUint32(),
+			VarName:   r.readString(),
+			StartLine: r.readUint32(),
+			EndLine:   r.readUint32(),
 		}
 	}
 	return nil

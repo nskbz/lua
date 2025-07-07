@@ -16,8 +16,8 @@ type luaStack struct {
 	prev    *luaStack
 	closure *closure
 	varargs []luaValue
-	openuvs map[int]upvalue
-	pc      int
+	openuvs map[int]upvalue //记录当前函数栈中捕获的外部变量，防止重复捕获
+	pc      int             //下一条指令的pc值
 
 	state *luaState
 }

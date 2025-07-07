@@ -92,10 +92,10 @@ exp ::=functiondef | tableconstructor
 //	    [5] = "five"    -- 显式指定索引5
 //	}
 type TableConstructExp struct {
-	Line     int // line of '{',for what?
-	LastLine int // line of  '}',for what?
-	Key      []Exp
-	Val      []Exp
+	Line     int // line of '{',for debug
+	LastLine int // line of  '}',for debug
+	Keys     []Exp
+	Vals     []Exp
 }
 
 // 函数定义表达式
@@ -116,12 +116,12 @@ type TableConstructExp struct {
 //
 // end
 type FuncDefExp struct {
-	Line     int // line of  'function'
-	LastLine int // line of 'end'
-	ParList  []string
-	//Vararg   *VarargExp
+	ArgList  []string
 	IsVararg bool
 	Block    *Block
+
+	DefLine  int // line of  'function'
+	LastLine int // line of 'end'
 }
 
 /*

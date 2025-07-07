@@ -8,61 +8,103 @@ import (
 	"os"
 
 	"nskbz.cn/lua/api"
+	"nskbz.cn/lua/binchunk"
+	"nskbz.cn/lua/compile"
 	"nskbz.cn/lua/compile/lexer"
 	"nskbz.cn/lua/compile/parser"
 	"nskbz.cn/lua/state"
+	"nskbz.cn/lua/tool"
 )
 
-// var reDecEscapeSeq = regexp.MustCompile(`^\\[0-9]{1,3}`)          //十进制ASCII码
-// var reHexEscapeSeq = regexp.MustCompile(`^\\x[0-9a-fA-F]{2}`)     //十六进制ASCII码
-// var reUnicodeEscapeSeq = regexp.MustCompile(`^\\u{[0-9a-fA-F]+}`) //unicode码
-
 func main() {
-	var chunk, source string
-	var run, compile bool
-	flag.BoolVar(&run, "r", false, "...")
-	flag.BoolVar(&compile, "c", false, "...")
-	flag.StringVar(&chunk, "i", "../luac.out", "执行的chunk文件")
-	flag.StringVar(&source, "s", "../test.lua", "需要编译的原文件")
+
+	var c bool
+	flag.BoolVar(&c, "c", false, "是否只是编译")
+	flag.BoolVar(&tool.DebugFlag, "d", false, "是否开启Debug模式")
 	flag.Parse()
-	if run {
-		fmt.Printf("chunck file====>[%s]\n", chunk)
-		f, err := os.Open(chunk)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-		datas, err := io.ReadAll(f)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-		vm := state.New()
-		vm.Register("print", print)
-		vm.Register("getmetatable", getMetaTable)
-		vm.Register("setmetatable", setMetaTable)
-		vm.Register("next", next)
-		vm.Register("pairs", pairs)
-		vm.Register("ipairs", iPairs)
-		vm.Register("error", luaError)
-		vm.Register("pcall", pCall)
-		vm.Load(datas, "test.lua", "b")
-		vm.Call(0, 0)
-	} else if compile {
-		fmt.Printf("source file====>[%s]\n", source)
-		f, err := os.Open(source)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-		datas, err := io.ReadAll(f)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-		//testLexer(datas, source)
-		testParser(datas, source)
+	chunk := flag.Arg(0) //第一个非'-'参数必须为文件名
+
+	f, err := os.Open(chunk)
+	if err != nil {
+		panic(err.Error())
 	}
+	data, err := io.ReadAll(f)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if c { //只进行编译操作，则于stdout输出json格式
+		proto := compile.Compile(data, chunk)
+		// suffix := chunk[strings.LastIndex(chunk, "."):]
+		// target := strings.Replace(chunk, suffix, ".out", 1)
+		// f, err := os.Open(target)
+		// if err != nil {
+		// 	panic(err.Error())
+		// }
+		// f.Write(proto.ToBytes())
+		protoInfo := binchunk.ProtoToProtoInfo(proto)
+		fmt.Printf("chunck file====>[%s]\n\n", chunk)
+		s, err := json.Marshal(protoInfo)
+		if err != nil {
+			panic(err.Error())
+		}
+		fmt.Println(string(s))
+		return
+	}
+
+	//没有-c参数,则文件有可能是lua二进制文件,也有可能是lua源文件
+	vm := state.New()
+	vm.Register("print", print)
+	vm.Register("getmetatable", getMetaTable)
+	vm.Register("setmetatable", setMetaTable)
+	vm.Register("next", next)
+	vm.Register("pairs", pairs)
+	vm.Register("ipairs", iPairs)
+	vm.Register("error", luaError)
+	vm.Register("pcall", pCall)
+	vm.Load(data, chunk, "b") //b没用,是否需要删除,,,,todo
+	vm.Call(0, 0)
+
+	// if run {
+	// 	fmt.Printf("chunck file====>[%s]\n", chunk)
+	// 	f, err = os.Open(chunk)
+	// 	if err != nil {
+	// 		fmt.Println(err.Error())
+	// 		return
+	// 	}
+	// 	datas, err := io.ReadAll(f)
+	// 	if err != nil {
+	// 		fmt.Println(err.Error())
+	// 		return
+	// 	}
+	// 	vm := state.New()
+	// 	vm.Register("print", print)
+	// 	vm.Register("getmetatable", getMetaTable)
+	// 	vm.Register("setmetatable", setMetaTable)
+	// 	vm.Register("next", next)
+	// 	vm.Register("pairs", pairs)
+	// 	vm.Register("ipairs", iPairs)
+	// 	vm.Register("error", luaError)
+	// 	vm.Register("pcall", pCall)
+	// 	vm.Load(datas, source, "b") //b没用,是否需要删除,,,,todo
+	// 	vm.Call(0, 0)
+	// } else if compile {
+	// 	fmt.Printf("source file====>[%s]\n", source)
+	// 	f, err := os.Open(source)
+	// 	if err != nil {
+	// 		fmt.Println(err.Error())
+	// 		return
+	// 	}
+	// 	datas, err := io.ReadAll(f)
+	// 	if err != nil {
+	// 		fmt.Println(err.Error())
+	// 		return
+	// 	}
+	// 	//testLexer(datas, source)
+	// 	testParser(datas, source)
+	// } else {
+	// 	panic("not support arg!!!!")
+	// }
 }
 
 func testParser(data []byte, name string) {
@@ -107,6 +149,10 @@ func tokenKindToCategory(kind int) string {
 	}
 }
 
+/*
+	注册全局函数
+*/
+
 func print(vm api.LuaVM) int {
 	nArgs := vm.GetTop()
 	for i := 1; i <= nArgs; i++ {
@@ -137,6 +183,7 @@ func setMetaTable(vm api.LuaVM) int {
 	return 1
 }
 
+// 通用for循环的迭代器函数，迭代器返回2个参数，分别为key,value。如果key==nil则表示没有键值对了
 func next(vm api.LuaVM) int {
 	vm.SetTop(2)
 	if vm.Next(1) {
@@ -149,9 +196,9 @@ func next(vm api.LuaVM) int {
 
 // 用于map遍历
 func pairs(vm api.LuaVM) int {
-	vm.PushGoFunction(next, 0)
-	vm.PushValue(1)
-	vm.PushNil()
+	vm.PushGoFunction(next, 0) //推入迭代函数
+	vm.PushValue(1)            //推入需遍历的目标
+	vm.PushNil()               //推入迭代器第二个参数，初始值
 	return 3
 }
 

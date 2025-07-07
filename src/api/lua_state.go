@@ -130,8 +130,8 @@ type LuaState interface {
 	IsTable(idx int) bool
 	IsThread(idx int) bool
 	IsFunction(idx int) bool
-	ToBoolean(idx int) bool  //获取指定索引的bool值
-	ToInteger(idx int) int64 //获取指定索引的int64值
+	ToBoolean(idx int) bool     //获取指定索引的bool值
+	ToInteger(offset int) int64 //获取指定索引的int64值,idx为相对top的偏移
 	ToIntegerX(idx int) (int64, bool)
 	ToFloat(idx int) float64 //获取指定索引的float64值
 	ToFloatX(idx int) (float64, bool)
@@ -161,6 +161,8 @@ type LuaState interface {
 	Load(chunk []byte, chunckName, mode string) int //加载chunk获得对应的closure并将其压入栈
 	//lua函数：将nArgs+1数量的val弹出作为函数及其参数，执行closure，最后将nResults数量的结果值压入栈(nResults<0则压入所有返回值)
 	//go函数：将nArgs数量的val弹出作为外部Go函数的参数，执行Go函数并将所有返回值都压入栈中
+	//nArgs为参数个数
+	//nResults为返回值个数:==0则不返回任何值,<0则返回值全部压入,>0则返回nResults个返回值
 	Call(nArgs, nResults int)
 	/*
 	*	Go函数支持
@@ -179,7 +181,7 @@ type LuaState interface {
 	*	Upvalue支持
 	 */
 	UpvalueIndex(i int) int //获取Upvalue索引
-	CloseUpvalues(a int)    //取消对>=Upvalue[a-1]的引用
+	CloseUpvalues(a int)    //取消对>=局部变量R[a-1]的Upvalue引用
 	/*
 	*	元编程支持
 	 */

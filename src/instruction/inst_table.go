@@ -21,6 +21,7 @@ func getTable(i Instruction, vm api.LuaVM) {
 }
 
 // R(A)[RK(B)] := RK(C)
+// 将RK(K)作为值映射为表R(A)中的RK(B)键
 func setTable(i Instruction, vm api.LuaVM) {
 	a, b, c := i.ABC()
 	a += 1
@@ -32,6 +33,11 @@ func setTable(i Instruction, vm api.LuaVM) {
 // SETLIST 批大小
 const LFIELDS_PER_FLUSH = 50
 
+// SETLIST 指令用于将栈上的一组连续值批量赋值给表的数组部分，通常在初始化表或批量更新数组元素时使用。底层还是利用的SETTABLE指令。
+// SETLIST A, B, C
+// A：表所在的寄存器索引。
+// B：栈上连续值的数量。
+// C：决定目标表数组的起始索引(非实际索引),准确应该是批数。
 func setList(i Instruction, vm api.LuaVM) {
 	a, b, c := i.ABC()
 	a += 1
@@ -52,7 +58,7 @@ func setList(i Instruction, vm api.LuaVM) {
 	//把寄存器列表里的val添加进table
 	vm.CheckStack(2)
 	for i := 1; i <= b; i++ {
-		vm.PushInteger(int64(c*LFIELDS_PER_FLUSH + i))
+		vm.PushInteger(int64(c*LFIELDS_PER_FLUSH + i)) //C经过计算后才是实际索引
 		vm.PushValue(a + i)
 		vm.SetTable(a)
 	}

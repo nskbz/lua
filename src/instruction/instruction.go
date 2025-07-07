@@ -2,15 +2,18 @@ package instruction
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"nskbz.cn/lua/api"
+	"nskbz.cn/lua/tool"
 )
 
-//       		  |			                             32bit										  |
-//   iABC: |B 			9bit|C 		9bit|A	 	 8bit|Opcode 	 6bit|
-//   iABx: |Bx						  18bit|A 		8bit|Opcode 	6bit|
-//iAsBx: |sBx     				  18bit|A 		8bit|Opcode 	6bit|
-//    iAx: |Ax		             	 					26bit|Opcode	 6bit|
+//		|                 			32bit							  |
+//iABC: |B 			9bit|C 			9bit|A	 	8bit|Opcode 	  6bit|
+//iABx: |Bx						   18bit|A 		8bit|Opcode 	  6bit|
+//iAsBx:|sBx     				   18bit|A 		8bit|Opcode 	  6bit|
+//iAx:  |Ax		             	 			   26bit|Opcode	      6bit|
 
 type Instruction uint32
 
@@ -32,6 +35,8 @@ const (
 	ArgRK byte = ArgR | ArgK
 )
 
+const ConstantBase = 0x100
+
 const MAX_BX = 1<<18 - 1
 const MAX_SBX = MAX_BX >> 1
 
@@ -44,7 +49,7 @@ func (code Instruction) opcode() opcode {
 }
 
 // 获取uint32 code对应的指令结构类型
-func (code Instruction) OpMode() byte {
+func (code Instruction) OpMode() int {
 	return code.opcode().opMode
 }
 
@@ -52,11 +57,9 @@ func (code Instruction) OpMode() byte {
 func (code Instruction) Execute(vm api.LuaVM) {
 	h := code.opcode().handler
 	if h == nil {
-		panic(fmt.Sprintf("instruction[%s] mapping action is nil", code.InstructionName()))
+		panic(fmt.Sprintf("instruction[%s] mapping action is nil", code.Name()))
 	}
 	h(code, vm)
-	//debug
-	//printStack(vm)
 }
 
 func printStack(s api.LuaVM) {
@@ -76,8 +79,44 @@ func printStack(s api.LuaVM) {
 	fmt.Println()
 }
 
-func (code Instruction) InstructionName() string {
+func (code Instruction) Name() string {
 	return code.opcode().InstructionName()
+}
+
+func (code Instruction) Info() string {
+	sb := strings.Builder{}
+	sb.WriteString(code.opcode().InstructionName() + "\t")
+	// ABC指令
+	switch i := code.OpMode(); i {
+	case IABC:
+		a, b, c := code.ABC()
+		sb.WriteString(strconv.Itoa(a) + "\t")
+		if code.ModArgB(ArgU) {
+			sb.WriteString(strconv.Itoa(b))
+		}
+		sb.WriteByte('\t')
+		if code.ModArgC(ArgU) {
+			sb.WriteString(strconv.Itoa(c))
+		}
+		sb.WriteByte('\t')
+	case IABx: //IABx中的LOADK可以有b不使用的情况需要处理
+		a, bx := code.ABx()
+		sb.WriteString(strconv.Itoa(a) + "\t")
+		if code.ModArgB(ArgU) {
+			sb.WriteString(strconv.Itoa(bx))
+		}
+		sb.WriteString("\t\t")
+	case IAsBx:
+		a, sbx := code.AsBx()
+		sb.WriteString(strconv.Itoa(a) + "\t" + strconv.Itoa(sbx) + "\t\t")
+	case IAx:
+		ax := code.Ax()
+		sb.WriteString(strconv.Itoa(ax) + "\t\t\t")
+	default:
+		panic(fmt.Sprintf("not support instruction of type[%d]", i))
+	}
+
+	return tool.ReplaceTabToSpace(sb.String(), 4)
 }
 
 func (code Instruction) ABC() (a, b, c int) {
@@ -95,7 +134,7 @@ func (code Instruction) ABx() (a, bx int) {
 
 func (code Instruction) AsBx() (a, sbx int) {
 	a = int(code >> 6 & 0xFF)
-	sbx = int(code>>14) - MAX_SBX
+	sbx = int(code>>14) - MAX_SBX //todo 这样为什么能达到还原sbx的效果 涉及补码知识?
 	return
 }
 
@@ -122,7 +161,7 @@ type opcode struct {
 	argAMode byte
 	argBMode byte
 	argCMode byte
-	opMode   byte
+	opMode   int
 	name     string //打印方便
 
 	handler action

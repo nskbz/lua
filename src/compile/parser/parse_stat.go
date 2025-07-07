@@ -43,10 +43,9 @@ func parseEmptyStat(l *lexer.Lexer) ast.Stat {
 }
 
 func parseBreakStat(l *lexer.Lexer) ast.Stat {
-	l.NextToken()
-	nt := l.LookToken()
+	t := l.NextToken()
 	return &ast.BreakStat{
-		Line: nt.Line(),
+		Line: t.Line(),
 	}
 }
 
@@ -58,10 +57,11 @@ func parseLabelStat(l *lexer.Lexer) ast.Stat {
 }
 
 func parseGotoStat(l *lexer.Lexer) ast.Stat {
-	l.NextToken()
+	t := l.NextToken() //skip 'goto'
 	identifier := l.AssertAndSkipToken(lexer.TOKEN_IDENTIFIER)
 	return &ast.GotoStat{
 		Name: identifier.Val(),
+		Line: t.Line(),
 	}
 }
 
@@ -75,12 +75,13 @@ func parseDoStat(l *lexer.Lexer) ast.Stat {
 }
 
 func parseWhileStat(l *lexer.Lexer) ast.Stat {
-	l.NextToken() //skip 'while'
+	t := l.NextToken() //skip 'while'
 	exp := parseExp(l)
 	doStat := parseDoStat(l).(*ast.DoStat)
 	return &ast.WhileStat{
-		Exp:   exp,
-		Block: doStat.Block,
+		ExpLine: t.Line(),
+		Exp:     exp,
+		Block:   doStat.Block,
 	}
 }
 
@@ -121,7 +122,7 @@ func parseIfStat(l *lexer.Lexer) ast.Stat {
 	//处理else
 	if l.CheckToken(lexer.TOKEN_KW_ELSE) {
 		l.NextToken() //skip 'else'
-		exps = append(exps, ast.TrueExp{Line: l.Line()})
+		exps = append(exps, &ast.TrueExp{Line: l.Line()})
 		blocks = append(blocks, parseBlock(l))
 	}
 
@@ -167,10 +168,11 @@ func _parseForNumStat(l *lexer.Lexer, lineOfFor int, names []string, exps []ast.
 
 	lineForDo := l.AssertAndSkipToken(lexer.TOKEN_KW_DO).Line()
 	block := parseBlock(l)
-	l.AssertAndSkipToken(lexer.TOKEN_KW_END)
+	lineForEnd := l.AssertAndSkipToken(lexer.TOKEN_KW_END).Line()
 	return &ast.ForNumStat{
 		LineOfFor: lineOfFor,
 		LineOfDo:  lineForDo,
+		LineOfEnd: lineForEnd,
 		Name:      names[0],
 		Init:      exps[0],
 		Limit:     exps[1],
@@ -185,15 +187,16 @@ func _parseForInStat(l *lexer.Lexer, names []string, exps []ast.Exp) ast.Stat {
 
 	l.AssertAndSkipToken(lexer.TOKEN_KW_IN)
 
-	exps = append(exps, parseExpList(l))
+	exps = append(exps, parseExpList(l)...) //todo 这里会不会有问题,for in后面可以是函数调用表达式或是三元组
 	lineForDo := l.AssertAndSkipToken(lexer.TOKEN_KW_DO).Line()
 	block := parseBlock(l)
-	l.AssertAndSkipToken(lexer.TOKEN_KW_END)
+	lineForEnd := l.AssertAndSkipToken(lexer.TOKEN_KW_END).Line()
 	return &ast.ForInStat{
-		LineOfDo: lineForDo,
-		NameList: names,
-		ExpList:  exps,
-		Block:    block,
+		LineOfDo:  lineForDo,
+		LineOfEnd: lineForEnd,
+		NameList:  names,
+		ExpList:   exps,
+		Block:     block,
 	}
 }
 
@@ -220,13 +223,15 @@ func _parseLocalVal(l *lexer.Lexer) ast.Stat {
 }
 
 func _parseLocalFunc(l *lexer.Lexer) ast.Stat {
-	l.AssertAndSkipToken(lexer.TOKEN_KW_FUNCTION)
+	t := l.AssertAndSkipToken(lexer.TOKEN_KW_FUNCTION)
 	funcName := l.AssertIdentifier()
 	l.NextToken() //skip funcName
-	funcDef := parseFuncDefExp(l).(*ast.FuncDefExp)
+	funcDef := parseFuncDefExp(l, t.Line()).(*ast.FuncDefExp)
+	funcDef.DefLine = t.Line()
 	return &ast.LocalFuncDefStat{
-		Name: funcName.Val(),
-		Body: funcDef,
+		DefLine: t.Line(),
+		Name:    funcName.Val(),
+		Body:    funcDef,
 	}
 }
 
@@ -253,16 +258,17 @@ func _parseAssignStat(l *lexer.Lexer, prefixExp ast.Exp) *ast.AssignStat {
 }
 
 func parseFuncDefStat(l *lexer.Lexer) *ast.OopFuncDefStat {
-	l.AssertAndSkipToken(lexer.TOKEN_KW_FUNCTION) //skip 'function'
+	t := l.AssertAndSkipToken(lexer.TOKEN_KW_FUNCTION) //skip 'function'
 	funcNameExp, hasColon := _parseFuncName(l)
-	funcDef := parseFuncDefExp(l).(*ast.FuncDefExp)
+	funcDef := parseFuncDefExp(l, t.Line()).(*ast.FuncDefExp)
 	if hasColon { //处理冒号语法糖
 		// v:name(args) => v.name(self, args)
-		funcDef.ParList = append([]string{"self"}, funcDef.ParList...)
+		funcDef.ArgList = append([]string{"self"}, funcDef.ArgList...)
 	}
 	return &ast.OopFuncDefStat{
-		Name: funcNameExp,
-		Body: funcDef,
+		DefLine: t.Line(),
+		Name:    funcNameExp,
+		Body:    funcDef,
 	}
 }
 
@@ -279,10 +285,12 @@ func parseFuncDefStat(l *lexer.Lexer) *ast.OopFuncDefStat {
 func _parseFuncName(l *lexer.Lexer) (exp ast.Exp, hasColon bool) {
 	l.AssertIdentifier()
 	t := l.NextToken()
-	exp = &ast.NameExp{
+	exp = &ast.NameExp{ //第一个表达式必须作为变量
 		Line: t.Line(),
 		Name: t.Val(),
 	}
+	// [prefixExp,currentExp]表示TableAccessExp,OOP方法名的通用形式如下:
+	// [...[[NameExp,StringExp],StringExp],StringExp]...]
 	for l.CheckToken(lexer.TOKEN_SEP_DOT) {
 		l.NextToken() //skip '.'
 		t := l.AssertAndSkipToken(lexer.TOKEN_IDENTIFIER)

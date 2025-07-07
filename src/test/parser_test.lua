@@ -46,6 +46,24 @@ local function add(x, y)
 end
 print(add(2, 3))
 
+local function f()
+
+
+  local a, b = 1, 2; print(a, b)   -->	1	2
+  local a, b = 3, 4; print(a, b)   -->	3	4
+  do
+    print(a, b)                    -->	3	4
+    local a, b = 5, 6; print(a, b) -->	5	6
+  end
+  print(a, b)                      -->	3	4
+
+  return function(a)
+    print(a)
+  end
+end
+
+f()("jack")
+
 -- 表操作
 tbl[1] = "one"
 print(tbl.x, tbl[1])
@@ -68,21 +86,36 @@ print(coroutine.resume(co))
 print(string.upper("lua"), math.pi, table.concat({"a","b"}, ","))
 
 -- 标签与循环控制
-::loop::
-local x = math.random(1, 3)
-if x == 1 then
-    print("One")
-elseif x == 2 then
-    goto loop  -- 重新开始
-else
-    print("Three")
-    break
+local b = false
+do
+  do
+    print("作用域2")
+    do
+      print("作用域3")
+      do
+        print("作用域4")
+        if b == true then
+          goto myend  
+        end
+        goto mylabel
+        print("?")
+      end
+    end
+  end
+  ::mylabel::
+  print("作用域1")  
 end
 
--- 输出可能：
--- One
--- Three
--- （或无限循环，取决于随机数）
+do
+  do
+    goto mylabel
+  end
+  ::mylabel::
+  print("2.作用域1")
+end
+
+::myend::
+print("作用域0")
 
 -- 可变参数测试
 do

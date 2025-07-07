@@ -43,8 +43,30 @@ func doCompare(i Instruction, vm api.LuaVM, op api.CompareOp) {
 	vm.Pop(2)
 }
 
+// EQ: if ((RK(B) == RK(C)) ~= A) then pc++
+//
+// forexample:
+// local cond = (1 == 2)
+//
+//		if cond then
+//	    print("true")
+//		else
+//	    print("false")
+//
+// end
+// ==============================
+// EQ    0 1 2      ; 比较 1 和 2
+// LOADBOOL 0 0 1      ; R0 = false, 并跳过下一条指令
+// JMP    2         ; 跳转到 else 部分
+// ...              ; true 分支的代码
+// JMP    3         ; 跳过 else 部分
+// ...              ; false 分支的代码
 func eq(i Instruction, vm api.LuaVM) { doCompare(i, vm, api.CompareOp_EQ) }
+
+// LT: if ((RK(B) <  RK(C)) ~= A) then pc++
 func lt(i Instruction, vm api.LuaVM) { doCompare(i, vm, api.CompareOp_LT) }
+
+// LE: if ((RK(B) <= RK(C)) ~= A) then pc++
 func le(i Instruction, vm api.LuaVM) { doCompare(i, vm, api.CompareOp_LE) }
 
 func not(i Instruction, vm api.LuaVM) {
@@ -64,6 +86,20 @@ func testset(i Instruction, vm api.LuaVM) {
 	}
 }
 
+// TEST 更轻量：只需检查单个值的布尔状态
+// EQ 更复杂：需要比较两个值的类型和内容
+// 对于代码 if a then print("true") end：
+// instructions:
+// TEST    0 0 1    ; 测试寄存器0是否为真
+// JMP     1        ; 如果假则跳过
+// ...
+// 对于代码 if a == b then print("equal") end：
+// instructions:
+// EQ      0 1 2    ; 比较寄存器1和2
+// JMP     1        ; 如果不相等则跳过
+//
+// if not (R(A) == C) then pc++
+// 只判断R(A)的布尔值（只有nil和false为假）
 func test(i Instruction, vm api.LuaVM) {
 	a, _, c := i.ABC()
 	a += 1

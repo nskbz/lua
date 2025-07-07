@@ -5,8 +5,10 @@ import (
 
 	"nskbz.cn/lua/api"
 	"nskbz.cn/lua/binchunk"
+	"nskbz.cn/lua/compile"
 	"nskbz.cn/lua/instruction"
 	"nskbz.cn/lua/number"
+	"nskbz.cn/lua/tool"
 )
 
 type luaState struct {
@@ -68,10 +70,12 @@ func (s *luaState) UpvalueIndex(i int) int {
 	return api.LUA_REGISTRY_INDEX - i
 }
 
+// 由于Upvalue是对LocalVar的引用，所以当LocalVar要释放时应当通过这个方法关闭引用它的Upvalue
 func (s *luaState) CloseUpvalues(a int) {
 	//to do 这里不是很懂
+	//这里为什么要将拷贝Upvalue估计是为了支持并发操作，即使LocalVar释放了，但仍可以操作Upvalue不过无法影响原LocalVar
 	for i, v := range s.stack.openuvs {
-		if i >= a+1 {
+		if i >= a-1 {
 			value := *v.val
 			v.val = &value
 			delete(s.stack.openuvs, i)
@@ -91,7 +95,7 @@ func (s *luaState) isValidIdx(absidx int) bool {
 
 func (s *luaState) CheckStack(n int) {
 	if n < 0 {
-		panic("stack can not expand")
+		tool.Fatal(s, "stack can not expand")
 	}
 	available := s.stack.len() - s.stack.top
 	s.stack.expand(n - available)
@@ -520,7 +524,12 @@ func (s *luaState) popContext() {
 }
 
 func (s *luaState) Load(chunk []byte, chunckName, mode string) int {
-	proto := binchunk.Undump(chunk)
+	var proto *binchunk.Prototype
+	if binchunk.LUA_SIGNATURE == string(chunk[:4]) {
+		proto = binchunk.Undump(chunk)
+	} else {
+		proto = compile.Compile(chunk, chunckName) //如果不是LUA二进制形式,则对其进行编译
+	}
 	c := newLuaClosure(proto)
 	if len(c.upvals) > 0 {
 		env := s.registry.get(api.LUA_GLOBALS_RIDX)
@@ -536,6 +545,13 @@ func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
 	isVararg := c.proto.IsVararg == 1
 
 	//初始化被调函数栈，即创建调用帧
+	//栈大小为api.LUA_MIN_STACK+stackSize
+	//下面会使stack的top指向stackSize
+	//也就是说寄存器的数量为stackSize
+	//api.LUA_MIN_STACK为临时空间,用于计算
+	//[1,stacksize]&[stacksize+1,stacksize+api.LUA_MIN_STACK]
+	//      |					|
+	//  寄存器空间			   临时空间
 	stack := newLuaStack(api.LUA_MIN_STACK+stackSize, s)
 	stack.closure = c
 	if isVararg && len(args) > numParams {
@@ -550,18 +566,21 @@ func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
 	s.popContext()
 
 	//保存返回值至主调函数栈
+	//nResults==0则不返回任何值
+	//nResults<0则返回值全部压入,nResults>0则返回nResults个返回值
 	if nResults != 0 {
 		results := stack.popN(stack.top - stackSize)
 		s.CheckStack(len(results))
-		s.stack.pushN(results, nResults) //nResults<0则返回值全部压入
+		s.stack.pushN(results, nResults) //nResults<0则返回值全部压入,nResults>0则返回nResults个返回值
 	}
 }
 
 func (s *luaState) doLuaFuncCall() {
 	for {
-		i := instruction.Instruction(s.Fetch())
+		i := instruction.Instruction(s.Fetch()) //每次获取下一指令的同时会使PC++，即又指向下一个指令
+		tool.Debug(i.Info())
 		i.Execute(s)
-		if i.InstructionName() == "RETURN  " {
+		if i.Name() == "RETURN  " {
 			break
 		}
 	}
@@ -579,10 +598,12 @@ func (s *luaState) doGoFunc(nResults int, c *closure, args []luaValue) {
 	nr := c.goFunc(s)
 	s.popContext()
 
+	//nResults==0则不返回任何值
+	//nResults<0则返回值全部压入,nResults>0则返回nResults个返回值
 	if nResults != 0 {
 		results := stack.popN(nr)
 		s.CheckStack(len(results))
-		s.stack.pushN(results, nResults) //nResults<0则返回值全部压入
+		s.stack.pushN(results, nResults) //nResults<0则返回值全部压入,nResults>0则返回nResults个返回值
 	}
 }
 
@@ -593,7 +614,7 @@ func (s *luaState) Call(nArgs, nResults int) {
 	if !ok {
 		if mc := getMetaClosure(s, META_CALL, vals[0]); mc == nil {
 			//不是函数且没有META_CALL元方法报错
-			panic(fmt.Sprintf("[%s] is not a closure", typeOf(vals[0]).String()))
+			tool.Fatal(s, fmt.Sprintf("[%s] is not a closure", typeOf(vals[0]).String()))
 		} else {
 			if _c, ok := mc.(*closure); ok {
 				c = _c

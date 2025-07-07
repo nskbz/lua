@@ -18,11 +18,11 @@ var reIdentifier = regexp.MustCompile(`^[_\d\w]+`)
 var reShortStr = regexp.MustCompile(`(?s)(^'(\\\\|\\'|\\\n|\\z\s*|[^'\n])*')|(^"(\\\\|\\"|\\\n|\\z\s*|[^"\n])*")`)
 
 type Token struct {
-	kind  int
+	kind  int //TOKEN类型
 	value string
 
-	line int
-	i    int
+	line int //TOKEN所在行号
+	i    int //TOKEN索引
 }
 
 func (t *Token) Kind() int   { return t.kind }

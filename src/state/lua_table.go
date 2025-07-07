@@ -8,7 +8,7 @@ import (
 
 type table struct {
 	metaTable *table                //元方法表
-	_arr      []luaValue            //顺序数组下标的key
+	_arr      []luaValue            //顺序数组下标的key,注意数组的索引是从1开始的
 	_map      map[luaValue]luaValue //非顺序数组下标的key
 
 	keys map[luaValue]luaValue //key的顺序
@@ -25,6 +25,7 @@ func newTable(nArr, nRec int) *table {
 	return &t
 }
 
+// key不存在则返回nil
 func (t *table) get(key luaValue) luaValue {
 	idx := keyToInt(key)
 	if idx >= 1 && idx <= int64(t.len()) {
@@ -127,29 +128,6 @@ func (t *table) hasMetaFunc(key string) bool {
 	}
 	return false
 }
-
-// func (t *table) _initKeys() {
-// 	//table结构并未发生改变不需要重新init
-// 	if t.keys != nil {
-// 		return
-// 	}
-// 	keys := make(map[luaValue]luaValue)
-// 	var key luaValue = nil
-// 	for i, v := range t._arr {
-// 		if v != nil {
-// 			keys[key] = int64(i + 1)
-// 			key = int64(i + 1)
-// 		}
-// 	}
-// 	for k, v := range t._map {
-// 		if v != nil {
-// 			keys[key] = k
-// 			key = k
-// 		}
-// 	}
-
-// 	t.keys = keys
-// }
 
 func (t *table) nextKey(k luaValue) luaValue {
 	//table结构发生改变需要重新init

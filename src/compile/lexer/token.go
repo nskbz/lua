@@ -42,32 +42,36 @@ const (
 	TOKEN_OP_OR     // or
 	TOKEN_OP_NOT    // not
 	// KW == keyword
-	TOKEN_KW_BREAK                     // break
-	TOKEN_KW_DO                        // do
-	TOKEN_KW_ELSE                      // else
-	TOKEN_KW_ELSEIF                    // elseif
-	TOKEN_KW_END                       // end
-	TOKEN_KW_FALSE                     // false
-	TOKEN_KW_FOR                       // for
-	TOKEN_KW_FUNCTION                  // function
-	TOKEN_KW_GOTO                      // goto
-	TOKEN_KW_IF                        // if
-	TOKEN_KW_IN                        // in
-	TOKEN_KW_LOCAL                     // local
-	TOKEN_KW_NIL                       // nil
-	TOKEN_KW_REPEAT                    // repeat
-	TOKEN_KW_RETURN                    // return
-	TOKEN_KW_THEN                      // then
-	TOKEN_KW_TRUE                      // true
-	TOKEN_KW_UNTIL                     // until
-	TOKEN_KW_WHILE                     // while
-	TOKEN_IDENTIFIER                   // identifier
-	TOKEN_NUMBER                       // number literal
-	TOKEN_STRING                       // string literal
-	TOKEN_OP_UNM      = TOKEN_OP_MINUS // unary minus
-	TOKEN_OP_SUB      = TOKEN_OP_MINUS
-	TOKEN_OP_BNOT     = TOKEN_OP_WAVE
-	TOKEN_OP_BXOR     = TOKEN_OP_WAVE
+	TOKEN_KW_BREAK    // break
+	TOKEN_KW_DO       // do
+	TOKEN_KW_ELSE     // else
+	TOKEN_KW_ELSEIF   // elseif
+	TOKEN_KW_END      // end
+	TOKEN_KW_FALSE    // false
+	TOKEN_KW_FOR      // for
+	TOKEN_KW_FUNCTION // function
+	TOKEN_KW_GOTO     // goto
+	TOKEN_KW_IF       // if
+	TOKEN_KW_IN       // in
+	TOKEN_KW_LOCAL    // local
+	TOKEN_KW_NIL      // nil
+	TOKEN_KW_REPEAT   // repeat
+	TOKEN_KW_RETURN   // return
+	TOKEN_KW_THEN     // then
+	TOKEN_KW_TRUE     // true
+	TOKEN_KW_UNTIL    // until
+	TOKEN_KW_WHILE    // while
+	TOKEN_IDENTIFIER  // identifier
+	TOKEN_NUMBER      // number literal
+	TOKEN_STRING      // string literal
+	//像这样两种TOKEN类型对应同一值的情况，乍一看后续的语法分析怎么区分
+	//其实由于语法有优先性和结合性，导致会先尝试解析为TOKEN_OP_UNM类型，不行则解析成TOKEN_OP_SUB类型
+	//而它们之间由于结构体不一样(UnitaryOpExp和DualOpExp)，所以在指令生成的过程中就能够进行区分了
+	TOKEN_OP_UNM = TOKEN_OP_MINUS // unary minus
+	TOKEN_OP_SUB = TOKEN_OP_MINUS
+	//同上
+	TOKEN_OP_BNOT = TOKEN_OP_WAVE
+	TOKEN_OP_BXOR = TOKEN_OP_WAVE
 )
 
 var keywords = map[string]int{

@@ -164,8 +164,8 @@ func callMetaClosure(ls *luaState, function luaValue, nResult int, params ...lua
 	}
 	nArgs := len(params)
 	ls.CheckStack(1 + nArgs)
-	ls.stack.push(c)
-	for _, v := range params {
+	ls.stack.push(c)           //推入元方法
+	for _, v := range params { //推入参数
 		ls.stack.push(v)
 	}
 	ls.Call(nArgs, nResult)
