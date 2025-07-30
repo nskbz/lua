@@ -12,13 +12,13 @@ import (
 )
 
 type luaState struct {
-	stack    *luaStack
-	registry *table
+	stack    *luaStack //函数栈
+	registry *table    //注册表,也是个table
 }
 
 func New() api.LuaVM {
 	r := newTable(0, 0)                         //新建注册表
-	r.put(api.LUA_GLOBALS_RIDX, newTable(0, 0)) //添加全局环境进注册表
+	r.put(api.LUA_GLOBALS_RIDX, newTable(0, 0)) //添加全局环境表进注册表
 
 	ls := &luaState{registry: r}
 	ls.stack = newLuaStack(api.LUA_MIN_STACK, ls)
@@ -87,7 +87,7 @@ func (s *luaState) isValidIdx(absidx int) bool {
 	if absidx == api.LUA_REGISTRY_INDEX {
 		return true
 	}
-	if absidx <= 0 || absidx > s.stack.len() {
+	if absidx < 0 || absidx >= s.stack.len() {
 		return false
 	}
 	return true
@@ -95,7 +95,7 @@ func (s *luaState) isValidIdx(absidx int) bool {
 
 func (s *luaState) CheckStack(n int) {
 	if n < 0 {
-		tool.Fatal(s, "stack can not expand")
+		tool.Fatal(s, fmt.Sprintf("stack can not expand to %d", n))
 	}
 	available := s.stack.len() - s.stack.top
 	s.stack.expand(n - available)
@@ -183,7 +183,7 @@ func (s *luaState) Remove(idx int) {
 func (s *luaState) PushNil()              { s.stack.push(nil) }
 func (s *luaState) PushBoolean(b bool)    { s.stack.push(b) }
 func (s *luaState) PushInteger(n int64)   { s.stack.push(n) }
-func (s *luaState) PushNumber(n float64)  { s.stack.push(n) } // todo 看能否改变方法名换为Float
+func (s *luaState) PushFloat(n float64)   { s.stack.push(n) } // todo 看能否改变方法名换为Float
 func (s *luaState) PushString(str string) { s.stack.push(str) }
 
 /*
@@ -300,6 +300,11 @@ func (s *luaState) ToStringX(idx int) (string, bool) {
 	return convertToString(val)
 }
 
+func (s *luaState) ToPointer(idx int) interface{} {
+	absidx := s.AbsIndex(idx)
+	return s.stack.get(absidx)
+}
+
 /*
 *	运算操作
  */
@@ -382,7 +387,7 @@ func (s *luaState) Concat(n int) {
 			result := callMetaClosure(s, c, 1, a, b)
 			s.stack.push(result[0])
 		} else {
-			panic("do not found meta function for concat")
+			panic("do not found meta function for " + META_CONCAT)
 		}
 	}
 }
@@ -394,8 +399,8 @@ func (s *luaState) NewTable() {
 	s.CreateTable(0, 0)
 }
 
-func (s *luaState) CreateTable(nArr, nRec int) {
-	table := newTable(nArr, nRec)
+func (s *luaState) CreateTable(nArr, nPair int) {
+	table := newTable(nArr, nPair)
 	s.stack.push(table)
 }
 
@@ -403,7 +408,9 @@ func (s *luaState) GetTable(idx int) api.LuaValueType {
 	absidx := s.AbsIndex(idx)
 	t := s.stack.get(absidx)
 	k := s.stack.pop()
-	return s.getTableVal(t, k, false)
+	tp := s.getTableVal(t, k, false)
+	//tool.Debug("get table value " + tp.String())
+	return tp
 }
 
 func (s *luaState) GetField(idx int, k string) api.LuaValueType {
@@ -430,7 +437,7 @@ func (s *luaState) getTableVal(t luaValue, k luaValue, raw bool) api.LuaValueTyp
 		}
 	}
 
-	//采用元方法,t不是表或k在表中的值不存在
+	//不采用元方法,t不是表或k在表中的值不存在
 	if !raw {
 		if val := getMetaClosure(s, META_INDEX, t); val != nil {
 			switch x := val.(type) {
@@ -523,20 +530,31 @@ func (s *luaState) popContext() {
 	s.stack = outerCall //切换执行函数
 }
 
-func (s *luaState) Load(chunk []byte, chunckName, mode string) int {
+func (s *luaState) LoadWithEnv(chunk []byte, chunkName string, mode string, env interface{}) int {
+	if env == nil {
+		return api.LUA_ERR_ERR
+	}
 	var proto *binchunk.Prototype
 	if binchunk.LUA_SIGNATURE == string(chunk[:4]) {
 		proto = binchunk.Undump(chunk)
 	} else {
-		proto = compile.Compile(chunk, chunckName) //如果不是LUA二进制形式,则对其进行编译
+		proto = compile.Compile(chunk, chunkName) //如果不是LUA二进制形式,则采取源代码模式,即对其进行编译
 	}
 	c := newLuaClosure(proto)
-	if len(c.upvals) > 0 {
-		env := s.registry.get(api.LUA_GLOBALS_RIDX)
-		c.upvals[0] = upvalue{&env}
+	if len(proto.Upvalues) > 0 {
+		et := env.(luaValue)
+		if typeOf(et) != api.LUAVALUE_TABLE {
+			tool.Fatal(s, fmt.Sprintf("env expected a table,no %s", typeOf(et).String()))
+		}
+		c.upvals[0] = upvalue{&et}
 	}
 	s.stack.push(c)
 	return api.LUA_OK
+}
+
+func (s *luaState) Load(chunk []byte, chunckName, mode string) int {
+	env := s.registry.get(api.LUA_GLOBALS_RIDX)
+	return s.LoadWithEnv(chunk, chunckName, mode, env)
 }
 
 func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
@@ -569,7 +587,7 @@ func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
 	//nResults==0则不返回任何值
 	//nResults<0则返回值全部压入,nResults>0则返回nResults个返回值
 	if nResults != 0 {
-		results := stack.popN(stack.top - stackSize)
+		results := stack.popN(stack.top - stackSize) //将临时空间的方法返回值弹出
 		s.CheckStack(len(results))
 		s.stack.pushN(results, nResults) //nResults<0则返回值全部压入,nResults>0则返回nResults个返回值
 	}
@@ -578,7 +596,7 @@ func (s *luaState) doLuaFunc(nResults int, c *closure, args []luaValue) {
 func (s *luaState) doLuaFuncCall() {
 	for {
 		i := instruction.Instruction(s.Fetch()) //每次获取下一指令的同时会使PC++，即又指向下一个指令
-		tool.Debug(i.Info())
+		tool.Trace(i.Info())
 		i.Execute(s)
 		if i.Name() == "RETURN  " {
 			break
@@ -614,6 +632,7 @@ func (s *luaState) Call(nArgs, nResults int) {
 	if !ok {
 		if mc := getMetaClosure(s, META_CALL, vals[0]); mc == nil {
 			//不是函数且没有META_CALL元方法报错
+			//load装载函数中env如果没有对应的方法也会使得该错误发生
 			tool.Fatal(s, fmt.Sprintf("[%s] is not a closure", typeOf(vals[0]).String()))
 		} else {
 			if _c, ok := mc.(*closure); ok {
@@ -710,16 +729,16 @@ func (s *luaState) SetMetaTable(idx int) {
 	}
 }
 
-func (s *luaState) RawLen(idx int) uint {
+func (s *luaState) RawLen(idx int) int {
 	absidx := s.AbsIndex(idx)
 	val := s.stack.get(absidx)
 	switch x := val.(type) {
 	case string:
-		return uint(len(x))
+		return len(x)
 	case *table:
-		return uint(x.len())
+		return x.len()
 	}
-	return 0
+	return -1
 }
 
 func (s *luaState) RawEqual(idx1, idx2 int) bool {
@@ -788,15 +807,23 @@ func (s *luaState) Error() int {
 	panic(err)
 }
 
-func (s *luaState) PCall(nArgs, nResults, msgh int) (status int) {
+// 以保护模式执行方法,调用期间如果出现panic并不会停止运行而是立马抛出异常
+// 如果errhandler==true则表明有错误处理函数且位于索引1位置
+func (s *luaState) PCall(nArgs, nResults int, hasErrhandler bool) (status int) {
 	status = api.LUA_ERR_RUN
 	caller := s.stack //存储调用函数栈
 	defer func() {
+		//Call过程中如果panic了，会被这里拦截下来并存放一个err至栈顶
 		if err := recover(); err != nil {
 			for s.stack != caller {
 				s.popContext()
 			} //恢复至调用函数上下文
+			s.SetTop(1)       //只保留errhandler
 			s.stack.push(err) //在调用函数栈中压入err
+			if hasErrhandler {
+				s.Call(1, api.LUA_MULTRET)
+				return
+			}
 		}
 	}()
 	s.Call(nArgs, nResults)

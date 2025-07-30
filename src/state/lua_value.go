@@ -34,6 +34,8 @@ const (
 	META_INDEX     = "__index"
 	META_NEW_INDEX = "__newindex"
 	META_CALL      = "__call"
+	META_TOSTRING  = "__tostring"
+	META_NAME      = "__name"
 )
 
 type luaValue interface{}
@@ -53,7 +55,7 @@ func typeOf(val luaValue) api.LuaValueType {
 	case *closure:
 		return api.LUAVALUE_FUNCTION
 	}
-	panic("todo!")
+	return api.LUAVALUE_NONE
 }
 
 func convertToBoolean(val luaValue) bool {

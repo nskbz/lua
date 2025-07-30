@@ -478,6 +478,7 @@ func cgOopFuncDefStat(fi *funcInfo, stat ast.Stat) {
 	if idx := fi.indexOfLocalVar(varName); idx > -1 {
 		varIdx = idx
 	} else if idx := fi.indexOfUpvalue(varName); idx > -1 {
+		//todo 这里应当用SETTABUP
 		varIdx = idx
 	}
 	if varIdx == -1 {

@@ -81,21 +81,22 @@ func (compare CompareOp) String() string {
 type GoFunc func(LuaVM) int
 
 /*		Stack					Index
-*		|			nil			 |	  7 		  -							  -
-*		|			nil			 |	  6			 |	无效索引		|
-*		|			nil			 |	  5			-							|
-* top|	LuaValue	|		4		  -							|可接受索引
-*		|	LuaValue	|		3		 |	有效			  |
-*		|	LuaValue	|		2		|	索引			|
-*		|	LuaValue	|		1	   -					   -
+*		|		nil		|	  7 		 -					-
+*		|		nil		|	  6			 |	无效索引		 |
+*		|		nil		|	  5			 -					|
+* top	|	LuaValue	|		4		 -					|可接受索引
+*		|	LuaValue	|		3		 |	有效			 |
+*		|	LuaValue	|		2		 |	索引			 |
+*		|	LuaValue	|		1	   	 -					-
  *
- *		LuaState主要是基于luaStack上的功能封装
+ *		BasicAPI主要是基于luaStack上的功能封装
 */
 
-type LuaState interface {
+type BasicAPI interface {
 	/*
 	*	基础栈操作
 	 */
+
 	GetTop() int             //获取top index
 	SetTop(idx int)          //设置top index并将其后的出栈
 	AbsIndex(idx int) int    //获取绝对index，返回的合法index应当大于0
@@ -107,17 +108,21 @@ type LuaState interface {
 	Rotate(idx, n int)       //将[idx,top]的val进行轮转；n>0向栈顶轮转，n<0向栈底轮转
 	Insert(idx int)          //将栈顶val弹出并插入到指定索引，整个过程栈长度不变
 	Remove(idx int)          //删除指定索引并将后续的val依次顺移填充，栈长度-1
+
 	/*
 	*	进栈操作
 	 */
+
 	PushNil()
 	PushBoolean(b bool)
 	PushInteger(n int64)
-	PushNumber(n float64)
+	PushFloat(n float64)
 	PushString(s string)
+
 	/*
 	*	栈元素访问
 	 */
+
 	TypeName(tp LuaValueType) string //获取对应luaval的名称
 	Type(idx int) LuaValueType       //返回对应索引的val
 	IsNone(idx int) bool
@@ -137,18 +142,23 @@ type LuaState interface {
 	ToFloatX(idx int) (float64, bool)
 	ToString(idx int) string //获取指定索引的string值
 	ToStringX(idx int) (string, bool)
+	ToPointer(idx int) interface{} //获取指定索引寄存器内的值
+
 	/*
 	*	运算操作
 	 */
+
 	Arith(op ArithOp)                          //进行算术运算
 	Compare(idx1, idx2 int, op CompareOp) bool //对两索引的val进行比较，不改变栈结构
 	Len(idx int)                               //将指定索引的val的长度压入栈顶
 	Concat(n int)                              //从栈顶弹出n个val进行字符串拼接，结果压入栈
+
 	/*
 	*	表相关操作
 	 */
-	NewTable()
-	CreateTable(nArr, nRec int)              //创建table并将其压入栈顶
+
+	NewTable()                               //等同CreateTable(0,0)
+	CreateTable(nArr, nPair int)             //创建table并将其压入栈顶
 	GetTable(idx int) LuaValueType           //获取指定idx对应table的(stack[top])索引值类型并将其值压入栈(table=stack[idx])：table[stack[top]] ;该方法会弹出一个元素
 	GetField(idx int, k string) LuaValueType //获取指定idx的table和指定字符串键的值类型并将其值压入栈：table[k]
 	GetI(idx int, i int64) LuaValueType      //获取指定idx的table和指定整数键的值类型并将其值压入栈：table[i]
@@ -158,7 +168,10 @@ type LuaState interface {
 	/*
 	*	函数调用
 	 */
-	Load(chunk []byte, chunckName, mode string) int //加载chunk获得对应的closure并将其压入栈
+
+	Load(chunk []byte, chunckName, mode string) int                               //加载chunk获得对应的closure并将其压入栈,成功返回LUA_OK
+	LoadWithEnv(chunk []byte, chunkName string, mode string, env interface{}) int //不同于Load默认使用'_ENV'环境,该方法可以指定外部环境,即捕获的外部变量,env必须是luatable
+
 	//lua函数：将nArgs+1数量的val弹出作为函数及其参数，执行closure，最后将nResults数量的结果值压入栈(nResults<0则压入所有返回值)
 	//go函数：将nArgs数量的val弹出作为外部Go函数的参数，执行Go函数并将所有返回值都压入栈中
 	//nArgs为参数个数
@@ -167,12 +180,14 @@ type LuaState interface {
 	/*
 	*	Go函数支持
 	 */
-	PushGoFunction(gf GoFunc, n int) //弹出n个val作为gofunc的Upvalue(捕获变量)，然后压入gofunc
+
+	PushGoFunction(gf GoFunc, n int) //弹出n个val作为gofunc的Upvalue(捕获变量)，然后压入gofunc的Closure
 	IsGoFunction(idx int) bool
 	ToGoFunction(idx int) GoFunc
 	/*
 	*	全局环境
 	 */
+
 	PushGlobalTable()                  //将全局环境压入栈顶
 	GetGlobal(key string) LuaValueType //获取key=name的全局环境
 	SetGlobal(key string)              //设置全局环境key=val(val=stack[top])
@@ -180,28 +195,45 @@ type LuaState interface {
 	/*
 	*	Upvalue支持
 	 */
+
 	UpvalueIndex(i int) int //获取Upvalue索引
 	CloseUpvalues(a int)    //取消对>=局部变量R[a-1]的Upvalue引用
+
 	/*
 	*	元编程支持
 	 */
-	GetMetaTable(idx int) bool             //如果指定idx值具备元表则将其压入栈并返回true;若没有元表则直接返回false
-	SetMetaTable(idx int)                  //将栈顶的一个值弹出作为指定idx值的元表
-	RawLen(idx int) uint                   //(不使用元方法)返回对应idx的val值的长度
+
+	GetMetaTable(idx int) bool //如果指定idx值具备元表则将其压入栈并返回true;若没有元表则直接返回false
+	SetMetaTable(idx int)      //将栈顶的一个值弹出作为指定idx值的元表
+
+	/*
+	*	标准库支持
+	 */
+
+	RawLen(idx int) int                    //(不使用元方法)返回对应idx的val值的长度,返回-1表示非table或string
 	RawEqual(idx1, idx2 int) bool          //(不使用元方法)比较idx1和idx2是否相等
 	RawGet(idx int) LuaValueType           //(不使用元方法)获取指定idx的table的stack[top]索引值类型并将其值压入栈(table=stack[idx])：table[stack[top]] ;该方法会弹出一个元素
 	RawSet(idx int)                        //(不使用元方法)设置指定idx的table的键值(table=stack[idx])：table[key]=val (val=stack[top],key=stack[top--]) ;该方法会弹出两个元素
 	RawGetI(idx int, i int64) LuaValueType //(不使用元方法)获取指定idx的table和指定整数键的值类型并将其值压入栈：table[i]
 	RawSetI(idx int, i int64)              //(不使用元方法)设置指定idx的table和指定整数键的值：table[i]=val (val=stack[top])
+
 	/*
 	*	通用for循环支持
 	 */
+
 	//true：将指定idx对应table的key=stack[top]的下一个nextkey和其value压入栈顶(nextkey=top-1;value=top)
 	//false：nextkey==nil,循环结束
 	Next(idx int) bool
+
 	/*
 	*	异常处理支持
 	 */
-	Error() int //弹出栈顶值作为错误抛出
-	PCall(nArgs, nResults, msgh int) int
+
+	Error() int                                        //弹出栈顶值作为错误抛出
+	PCall(nArgs, nResults int, hasErrhandler bool) int //以保护模式执行方法,调用期间如果出现panic并不会停止运行而是立马抛出异常,如果有errhandler约定stack[1]为其函数closure
+}
+
+type LuaState interface {
+	BasicAPI
+	AuxLib
 }

@@ -47,6 +47,8 @@ const LUA_MAX_STACK = 1000000
 const LUA_REGISTRY_INDEX = -LUA_MAX_STACK - 1000
 const LUA_GLOBALS_RIDX int64 = 2 //
 
+const LUA_MULTRET = -1
+
 /* thread status */
 const (
 	LUA_OK = iota

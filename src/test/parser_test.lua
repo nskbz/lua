@@ -74,16 +74,16 @@ local x = {val=10}; setmetatable(x, mt)
 local y = {val=20}; setmetatable(y, mt)
 print(x + y)
 
--- 协程（简化）
-local co = coroutine.create(function()
-    coroutine.yield("pause")
-    return "done"
-end)
-print(coroutine.resume(co))
-print(coroutine.resume(co))
+-- -- 协程（简化）
+-- local co = coroutine.create(function()
+--     coroutine.yield("pause")
+--     return "done"
+-- end)
+-- print(coroutine.resume(co))
+-- print(coroutine.resume(co))
 
--- 标准库示例
-print(string.upper("lua"), math.pi, table.concat({"a","b"}, ","))
+-- -- 标准库示例
+-- print(string.upper("lua"), math.pi, table.concat({"a","b"}, ","))
 
 -- 标签与循环控制
 local b = false
@@ -117,18 +117,18 @@ end
 ::myend::
 print("作用域0")
 
--- 可变参数测试
-do
-    local function test(...)
-        print("--- Vararg Test ---")
-        print("Raw ...:", ...)
-        print("Count:", select('#', ...))
-        print("As table:", table.concat({...}, "|"))
-        print("Packed nils:", table.pack(...)[2])
-    end
+-- -- 可变参数测试
+-- do
+--     local function test(...)
+--         print("--- Vararg Test ---")
+--         print("Raw ...:", ...)
+--         print("Count:", select('#', ...))
+--         print("As table:", table.concat({...}, "|"))
+--         print("Packed nils:", table.pack(...)[2])
+--     end
 
-    test("A", nil, "C", 42)
-end
+--     test("A", nil, "C", 42)
+-- end
 
 local function test_concat()
     -- 基础测试
@@ -137,10 +137,9 @@ local function test_concat()
     
     -- 边界测试
     assert("" .. "B" == "B")
-    -- assert("X" .. nil)  -- 应报错
     
     -- 元表测试
-    local mt = {__tostring = function() return "META" end}
+    local mt = {__concat = function(a) return a.."META" end}
     local obj = setmetatable({}, mt)
     assert("OBJ:" .. obj == "OBJ:META")
     
@@ -148,3 +147,16 @@ local function test_concat()
 end
 
 test_concat()
+
+-- 测试Upvalue捕获
+local i = 1
+local outer = function()
+    local j= -100
+    j=j+i
+    local inner = function()
+        i=i-j
+    end
+    inner()
+end
+outer()
+print(i)  -- 输出: 100

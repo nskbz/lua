@@ -146,16 +146,18 @@ func cgConcatExp(fi *funcInfo, exp *ast.ConcatExp, a int) {
 	fi.usedRegs = oldUsed
 }
 
+// 在生成NameExp即变量表达式时
+// 依次考虑LocalVar,UpValue,GlobalVar
 func cgNameExp(fi *funcInfo, exp *ast.NameExp, a int) {
 	varName := exp.Name
 	// loacal var
-	if idx := fi.indexOfLocalVar(varName); idx >= 0 {
+	if idx := fi.indexOfLocalVar(varName); idx >= 0 { //localVar不会尝试去绑定
 		fi.MOVE(a, idx)
 		fi.recordInsLine(exp.Line)
 		return
 	}
 	// upvalue
-	if idx := fi.indexOfUpvalue(varName); idx >= 0 {
+	if idx := fi.indexOfUpvalue(varName); idx >= 0 { //UpValue会尝试去绑定
 		fi.GETUPVAL(a, idx)
 		fi.recordInsLine(exp.Line)
 		return

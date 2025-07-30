@@ -17,7 +17,8 @@ func setUpval(i Instruction, vm api.LuaVM) {
 	a += 1
 	b += 1
 	vm.PushValue(a)
-	vm.Replace(vm.UpvalueIndex(b))
+	uvIdx := vm.UpvalueIndex(b)
+	vm.Replace(uvIdx)
 }
 
 // R(A) := UpValue[B][RK(C)]

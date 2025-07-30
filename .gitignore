@@ -2,6 +2,8 @@
 
 *.json
 
+*.txt
+
 *lua
 !/src/test/*.lua
 

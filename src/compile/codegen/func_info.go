@@ -244,6 +244,7 @@ func (fi *funcInfo) indexOfUpvalue(name string) int {
 				upvalIndex:   -1,
 				index:        idx,
 			}
+			v.captured = true //局部变量标记为已捕获
 			return idx
 		}
 		//上层函数中没有捕获到变量，则说明需捕获的变量在更上层
@@ -724,7 +725,7 @@ func (g *gotoMap) pop(label string) []int {
 //	9       [8]     RETURN          0 3
 //	10      [9]     RETURN          0 1
 //
-// 为什么需要记录这些信息，应该是在翻译成GETUPVAL和SETUPVAL时需要，，，to do
+// 为什么需要记录这些信息，应该是需要访问的变量为Upvalue捕获变量时需要对应的索引信息，翻译成GETUPVAL和SETUPVAL
 type upvalInfo struct {
 	localVarSlot int //捕获外部局部变量的寄存器索引,该值不为-1说明捕获的就是上层函数的局部变量,为-1则说明至少在上上层函数
 	upvalIndex   int //外围函数中Upvalue表中的索引,该值不为-1说明捕获的不是上层函数的局部变量,可能是上上层函数甚至上上上层函数

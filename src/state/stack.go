@@ -72,7 +72,7 @@ func (s *luaStack) get(absidx int) luaValue {
 	if absidx == api.LUA_REGISTRY_INDEX {
 		return s.state.registry
 	}
-	if absidx < api.LUA_REGISTRY_INDEX {
+	if absidx < api.LUA_REGISTRY_INDEX { //UpValue
 		uvIdx := api.LUA_REGISTRY_INDEX - absidx - 1
 		c := s.closure
 		if c == nil || uvIdx >= len(c.upvals) {
@@ -89,11 +89,13 @@ func (s *luaStack) set(absidx int, val luaValue) {
 		s.state.registry = val.(*table)
 		return
 	}
-	if absidx < api.LUA_REGISTRY_INDEX {
+	if absidx < api.LUA_REGISTRY_INDEX { //Upvalue
 		uvIdx := api.LUA_REGISTRY_INDEX - absidx - 1
 		c := s.closure
 		if c != nil && uvIdx < len(c.upvals) {
-			c.upvals[uvIdx] = upvalue{&val}
+			//c.upvals[uvIdx] = upvalue{&val}
+			upValue := c.upvals[uvIdx]
+			*upValue.val = val
 		}
 		return
 	}

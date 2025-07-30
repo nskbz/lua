@@ -257,13 +257,20 @@ func _parseAssignStat(l *lexer.Lexer, prefixExp ast.Exp) *ast.AssignStat {
 	}
 }
 
-func parseFuncDefStat(l *lexer.Lexer) *ast.OopFuncDefStat {
+func parseFuncDefStat(l *lexer.Lexer) ast.Stat {
 	t := l.AssertAndSkipToken(lexer.TOKEN_KW_FUNCTION) //skip 'function'
 	funcNameExp, hasColon := _parseFuncName(l)
 	funcDef := parseFuncDefExp(l, t.Line()).(*ast.FuncDefExp)
 	if hasColon { //处理冒号语法糖
 		// v:name(args) => v.name(self, args)
 		funcDef.ArgList = append([]string{"self"}, funcDef.ArgList...)
+	}
+	if name, ok := funcNameExp.(*ast.NameExp); ok {
+		return &ast.LocalFuncDefStat{
+			Name:    name.Name,
+			Body:    funcDef,
+			DefLine: t.Line(),
+		}
 	}
 	return &ast.OopFuncDefStat{
 		DefLine: t.Line(),

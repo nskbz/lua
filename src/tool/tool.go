@@ -7,23 +7,6 @@ import (
 	"nskbz.cn/lua/api"
 )
 
-var DebugFlag bool = false
-
-func Debug(format string, args ...interface{}) {
-	if DebugFlag {
-		if len(args) == 0 {
-			fmt.Println(format)
-			return
-		}
-		fmt.Printf(format, args...)
-	}
-}
-
-func Fatal(s api.LuaVM, msg string) {
-	PrintStack(s)
-	panic(msg)
-}
-
 func PrintStack(s api.LuaVM) {
 	//fmt.Printf("register count=%d\n", s.RegisterCount())
 	for i := 1; i <= s.GetTop(); i++ {

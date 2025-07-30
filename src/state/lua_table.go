@@ -14,13 +14,13 @@ type table struct {
 	keys map[luaValue]luaValue //key的顺序
 }
 
-func newTable(nArr, nRec int) *table {
+func newTable(nArr, nPair int) *table {
 	t := table{}
 	if nArr > 0 {
 		t._arr = make([]luaValue, nArr)
 	}
-	if nRec > 0 {
-		t._map = make(map[luaValue]luaValue, nRec)
+	if nPair > 0 {
+		t._map = make(map[luaValue]luaValue, nPair)
 	}
 	return &t
 }
@@ -88,7 +88,7 @@ func (t *table) put(key, value luaValue) {
 	}
 	t._map[key] = value
 
-	//改变table结构后key的顺序可能发生变化需要重新init
+	//改变table结构后key的顺序可能发生变化需要重新生成顺序
 	t.keys = nil
 }
 

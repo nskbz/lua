@@ -44,7 +44,10 @@ func (s *luaState) GetRK(rk int) {
 	}
 }
 
-// 捕获外部变量
+// 加载子函数
+//
+// 可以看出closure是通过proto生成的并辅以当前环境(Upvalue捕获)
+// 所以任何的方法都是从proto定义出来的,即proto决定closure
 func (s *luaState) LoadProto(idx int) {
 	proto := s.stack.closure.proto.Protos[idx]
 	c := newLuaClosure(proto)
@@ -56,8 +59,7 @@ func (s *luaState) LoadProto(idx int) {
 		} else if v.Instack == 1 { //==1 表示该捕获变量属于函数的内部
 			//记录打开的捕获变量
 			if up, ok := s.stack.openuvs[uidx]; !ok {
-				val := s.stack.get(uidx + 1)
-				uv := upvalue{&val}
+				uv := upvalue{&s.stack.slots[uidx+1]} //UpValue会被捕获,要想统一修改,就只能是指针
 				c.upvals[i] = uv
 				s.stack.openuvs[uidx] = uv
 			} else {

@@ -25,9 +25,9 @@ func cgRetStat(fi *funcInfo, exps []ast.Exp, blockLastLine int) {
 	multRet := _isVarargOrFuncCall(exps[retNum-1]) //返回表达式中是否有vararg和函数调用
 
 	for i, exp := range exps {
-		idx := fi.allocReg() //预留返回值的位置，模拟但不会真的存值，就是一个占位的，模拟真实的函数调用栈中的寄存器行为
-		if i == retNum-1 && multRet {
-			cgExp(fi, exp, idx, 0)
+		idx := fi.allocReg()          //预留返回值的位置，模拟但不会真的存值，就是一个占位的，模拟真实的函数调用栈中的寄存器行为
+		if i == retNum-1 && multRet { //最后一个返回值表达式如果存在多个返回的情况要特殊处理
+			cgExp(fi, exp, idx, -1)
 		}
 		cgExp(fi, exp, idx, 1)
 	}

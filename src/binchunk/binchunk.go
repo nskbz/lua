@@ -69,7 +69,7 @@ type Prototype struct {
 
 type Upvalue struct {
 	Instack byte //捕获的变量是否在栈上：1(在，表示当前函数的局部变量) ; 0(不在，表示更外围函数的局部变量)
-	Idx     byte //instack==1表示栈上索引，instack==0表示外围函数的upvalue表索引
+	Idx     byte //instack==1表示栈上索引；instack==0表示外围函数的upvalue表索引,即closure内的upvals列表
 }
 
 type LocVar struct {

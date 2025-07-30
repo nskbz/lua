@@ -1,14 +1,15 @@
 package number
 
 import (
-	"fmt"
 	"strconv"
+
+	"nskbz.cn/lua/tool"
 )
 
 func ParseInteger(str string) (int64, bool) {
 	i, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
-		fmt.Printf("\n\n%s\n\n", err.Error())
+		tool.Debug("%s", err.Error())
 	}
 	return i, err == nil
 }
@@ -16,7 +17,7 @@ func ParseInteger(str string) (int64, bool) {
 func ParseFloat(str string) (float64, bool) {
 	f, err := strconv.ParseFloat(str, 64)
 	if err != nil {
-		fmt.Printf("\n\n%s\n\n", err.Error())
+		tool.Debug("%s", err.Error())
 	}
 	return f, err == nil
 }

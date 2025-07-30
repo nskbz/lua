@@ -39,16 +39,19 @@ func _getUpvalues(fi *funcInfo) ([]binchunk.Upvalue, []string) {
 	upvalues := []binchunk.Upvalue{}
 	upvalueNames := []string{}
 	var inStack byte
+	var idx byte
 	for k, v := range fi.upvalVars {
 		if v.localVarSlot >= 0 {
 			inStack = 1
+			idx = byte(v.localVarSlot)
 		}
 		if v.upvalIndex >= 0 {
 			inStack = 0
+			idx = byte(v.upvalIndex)
 		}
 		upvalues = append(upvalues, binchunk.Upvalue{
 			Instack: inStack,
-			Idx:     byte(v.index),
+			Idx:     idx,
 		})
 		upvalueNames = append(upvalueNames, k)
 	}

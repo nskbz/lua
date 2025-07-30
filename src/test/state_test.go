@@ -119,7 +119,7 @@ func TestPushXXX(t *testing.T) {
 	state := newState()
 	state.PushNil()
 	state.PushBoolean(false)
-	state.PushNumber(22.2)
+	state.PushFloat(22.2)
 	if !testState(state, "JACK", 1, 2, 3, 4, 5, nil, false, 22.2) {
 		t.Fail()
 	}
@@ -155,7 +155,7 @@ func TestOperation(t *testing.T) {
 	ls.PushInteger(1)
 	ls.PushString("2.0")
 	ls.PushString("3.0")
-	ls.PushNumber(4.0)
+	ls.PushFloat(4.0)
 	if !testState(ls, 1, "2.0", "3.0", 4) {
 		t.FailNow()
 	}

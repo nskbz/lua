@@ -102,10 +102,14 @@ func parseFuncDefExp(l *lexer.Lexer, lineForFunc int) ast.Exp {
 
 func parseExpList(l *lexer.Lexer) []ast.Exp {
 	exps := []ast.Exp{}
-	exps = append(exps, parseExp(l))
+	if exp := parseExp(l); exp != nil {
+		exps = append(exps, exp)
+	}
 	for l.CheckToken(lexer.TOKEN_SEP_COMMA) {
 		l.NextToken() //skip ','
-		exps = append(exps, parseExp(l))
+		if exp := parseExp(l); exp != nil {
+			exps = append(exps, exp)
+		}
 	}
 	return exps
 }
@@ -465,6 +469,9 @@ func parseTableConstructorExp(l *lexer.Lexer) ast.Exp {
 		for _checkTableFieldEnd(l) {
 			l.NextToken() //skip ','|';'
 			key, value = _parseTableField(l)
+			if key == nil && value == nil { //都为空则直接跳出
+				break
+			}
 			if key == nil {
 				key = &ast.IntExp{Line: l.Line(), Val: int64(i)}
 				i++
