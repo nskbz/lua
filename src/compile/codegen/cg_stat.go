@@ -385,10 +385,10 @@ func cgAssignStat(fi *funcInfo, stat ast.Stat) {
 	}
 	//处理ExpList
 	vRegs := make([]int, nVars) //为每个变量的新值申请临时空间，记录idx
-	if nVars <= nExps {         //nVars<=nExps,则一个表达式依次对应一个变量,多余的舍弃
+	if nVars <= nExps {         //nVars<=nExps,则一个表达式依次对应一个变量,多余的表达式舍弃,如果多余的(i>=nVars)表达式为函数调用或vararg且为最后一个表达式则不要求其返回
 		for i, exp := range assignStat.ExpList {
 			a := fi.allocReg()
-			if i == nExps-1 && _isVarargOrFuncCall(exp) {
+			if i >= nVars && i == nExps-1 && _isVarargOrFuncCall(exp) {
 				cgExp(fi, exp, a, 0) //不返回
 			} else {
 				cgExp(fi, exp, a, 1)

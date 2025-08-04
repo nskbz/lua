@@ -238,7 +238,7 @@ func _parseLocalFunc(l *lexer.Lexer) ast.Stat {
 func parseAssignOrFuncCallStat(l *lexer.Lexer) ast.Stat {
 	context := *l //保护现场
 	prefixExp := parsePrefixExp(l)
-	if fc, ok := prefixExp.(*ast.FuncCallExp); ok { //to do 将冒号语法糖还原
+	if fc, ok := prefixExp.(*ast.FuncCallExp); ok {
 		return fc
 	}
 	*l = context //返回现场

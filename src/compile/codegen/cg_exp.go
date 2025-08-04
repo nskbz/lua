@@ -147,7 +147,7 @@ func cgConcatExp(fi *funcInfo, exp *ast.ConcatExp, a int) {
 }
 
 // 在生成NameExp即变量表达式时
-// 依次考虑LocalVar,UpValue,GlobalVar
+// 依次考虑LocalVar,UpValue,EnvironmentalVar
 func cgNameExp(fi *funcInfo, exp *ast.NameExp, a int) {
 	varName := exp.Name
 	// loacal var
@@ -162,7 +162,7 @@ func cgNameExp(fi *funcInfo, exp *ast.NameExp, a int) {
 		fi.recordInsLine(exp.Line)
 		return
 	}
-	// global var => _ENV['x']
+	// environmental var => _ENV['x']
 	cgTableAccessExp(fi, &ast.TableAccessExp{
 		LastLine:   exp.Line,
 		PrefixExp:  &ast.NameExp{exp.Line, "_ENV"},
@@ -186,22 +186,26 @@ func cgFuncCallExp(fi *funcInfo, exp *ast.FuncCallExp, a, n int) {
 	//1.将函数调用所需的方法及其参数的装载指令生成
 	lastArgIsVarargOrFuncCall := false
 	nArgs := 0 //记录方法一共传递的参数
-	//生成装载函数指令
-	//OOP类型的函数需要特殊处理
+	//1.1生成装载函数指令
+	//OOP类型的函数调用需要特殊处理
 	if ta, ok := exp.Method.(*ast.TableAccessExp); ok {
-		cgExp(fi, ta.PrefixExp, a, 1) //PrefixExp应为NameExp，所以这里处理后a处应为对象实例
-		keyExp := ta.CurrentExp.(*ast.StringExp)
-		//将其方法加入该函数的常量池中
-		fi.allocReg()                                                  //SELF会用到R(A+1),所以需要申请一个寄存器空间
-		c := instruction.ConstantBase + fi.indexOfConstant(keyExp.Str) //这里为什么加0x100 参考vm.GetRK方法
-		fi.SELF(a, a, c)
-		fi.recordInsLine(keyExp.Line)
-		nArgs++ //自身需要作为参数传入
+		if !ta.HasColon {
+			cgTableAccessExp(fi, ta, a)
+		} else {
+			//处理冒号语法糖,即将对象self作为第一个参数
+			cgExp(fi, ta.PrefixExp, a, 1) //PrefixExp可以是TableAccessExp或为NameExp
+			keyExp := ta.CurrentExp.(*ast.StringExp)
+			c := instruction.ConstantBase + fi.indexOfConstant(keyExp.Str) //这里为什么加0x100 参考vm.GetRK方法
+			fi.allocReg()                                                  //SELF会用到R(A+1),所以需要申请一个寄存器空间
+			fi.SELF(a, a, c)
+			fi.recordInsLine(keyExp.Line)
+			nArgs++ //自身需要作为参数传入
+		}
 	} else {
 		//普通类型的方法直接生成，将方法定义move到a中
 		cgExp(fi, exp.Method, a, 1)
 	}
-	//生成装载参数指令,按顺序压入栈
+	//1.2生成装载参数指令,按顺序压入栈
 	//这里可能需要多个寄存器空间,所以记录开始usedRegs好方便后续释放
 	oldUsed := fi.usedRegs
 	for i, arg := range exp.Exps {

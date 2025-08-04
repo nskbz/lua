@@ -33,13 +33,10 @@ var baseFuncs = map[string]api.GoFunc{
 	"type":         baseType,
 	"tostring":     baseToString,
 	"tonumber":     baseToNumber,
-	/* placeholders */
-	// "_G":       nil,
-	// "_VERSION": nil,
 }
 
 func OpenBaseLib(vm api.LuaVM) int {
-	//将方法都加载进全局环境
+	//基础库可以直接访问不需要使用modname.funcname的原因就是对于基础库的每一个func都进行了SetGlobal
 	for k, v := range baseFuncs {
 		vm.PushGoFunction(v, 0)
 		vm.SetGlobal(k)

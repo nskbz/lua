@@ -183,8 +183,16 @@ func (s *luaState) Remove(idx int) {
 func (s *luaState) PushNil()              { s.stack.push(nil) }
 func (s *luaState) PushBoolean(b bool)    { s.stack.push(b) }
 func (s *luaState) PushInteger(n int64)   { s.stack.push(n) }
-func (s *luaState) PushFloat(n float64)   { s.stack.push(n) } // todo 看能否改变方法名换为Float
+func (s *luaState) PushFloat(n float64)   { s.stack.push(n) }
 func (s *luaState) PushString(str string) { s.stack.push(str) }
+func (s *luaState) PushBasic(v interface{}) {
+	switch v := v.(type) {
+	case int64, float64, bool, string, nil:
+		s.stack.push(v)
+	default:
+		panic(fmt.Sprintf("not support %v", v))
+	}
+}
 
 /*
 *	栈元素访问
@@ -433,11 +441,11 @@ func (s *luaState) getTableVal(t luaValue, k luaValue, raw bool) api.LuaValueTyp
 		if raw || tb.get(k) != nil || !tb.hasMetaFunc(META_INDEX) {
 			val := tb.get(k)
 			s.stack.push(val)
-			return typeOf(val)
+			return typeOf(val) //如果k不存在且没有元方法则返回nil
 		}
 	}
 
-	//不采用元方法,t不是表或k在表中的值不存在
+	//不采用元方法,t不是表或k在表中的值不存在且没有__index元方法
 	if !raw {
 		if val := getMetaClosure(s, META_INDEX, t); val != nil {
 			switch x := val.(type) {
@@ -450,7 +458,7 @@ func (s *luaState) getTableVal(t luaValue, k luaValue, raw bool) api.LuaValueTyp
 			}
 		}
 	}
-	panic(fmt.Sprintf("type[%d] is not a table", typeOf(t)))
+	panic(fmt.Sprintf("type[%s] is not a table", typeOf(t).String()))
 }
 
 func (s *luaState) SetTable(idx int) {
@@ -499,6 +507,77 @@ func (s *luaState) setTableKV(t luaValue, k, v luaValue, raw bool) {
 	}
 
 	panic(fmt.Sprintf("type[%d] is not a table", typeOf(t)))
+}
+
+// 删除指定idx的table中arr数组中索引为i的值,并重新复制一份新的数组替换,最后将删除的值压入栈顶
+func (s *luaState) RemoveI(idx int, i int64) {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	var abandon luaValue
+	catch := false
+	if typeOf(t) != api.LUAVALUE_TABLE {
+		s.Error2("expected table!")
+	}
+	table := t.(*table)
+	newArr := make([]luaValue, len(table._arr)-1)
+	for j, k := 0, 0; j < len(newArr); k++ {
+		if k == int(i)-1 {
+			abandon = table._arr[j]
+			catch = true
+			continue
+		}
+		newArr[j] = table._arr[k]
+		j++
+	}
+	if !catch {
+		s.Error2("do not catch %d value", i)
+	}
+	table._arr = newArr
+	table.keys = nil      //由于元素变动key也要置空
+	s.stack.push(abandon) //将删除的值压入
+}
+
+// 将指定idx的table中arr进行排序
+// compare: func(luaValue, luaValue) bool
+// 当compare返回false时交换，true不交换
+func (s *luaState) SortI(idx int, compare func(interface{}, interface{}) bool) {
+	absidx := s.AbsIndex(idx)
+	t := s.stack.get(absidx)
+	if typeOf(t) != api.LUAVALUE_TABLE {
+		s.Error2("expected table!")
+	}
+	table := t.(*table)
+	//如果compare为空,默认用生序
+	if compare == nil {
+		compare = func(lv1, lv2 interface{}) bool {
+			if typeOf(lv1) == api.LUAVALUE_NUMBER {
+				switch a := lv1.(type) {
+				case int64:
+					return int(lv2.(int64)-a) > 0
+				case float64:
+					return int(lv2.(float64)-a) > 0
+				default:
+					tool.Fatal(s, fmt.Sprintf("sort not support %s", typeOf(lv1).String()))
+				}
+			}
+			return false
+		}
+	}
+
+	//冒泡排序
+	for i := 0; i < len(table._arr)-1; i++ {
+		for j := 0; j < len(table._arr)-1-i; j++ {
+			a := table._arr[j]
+			b := table._arr[j+1]
+			if !compare(a, b) { //switch
+				temp := table._arr[j]
+				table._arr[j] = table._arr[j+1]
+				table._arr[j+1] = temp
+			}
+		}
+	}
+
+	table.keys = nil //因为交换了位置,所以需要将keys置空
 }
 
 /*
@@ -553,7 +632,7 @@ func (s *luaState) LoadWithEnv(chunk []byte, chunkName string, mode string, env 
 }
 
 func (s *luaState) Load(chunk []byte, chunckName, mode string) int {
-	env := s.registry.get(api.LUA_GLOBALS_RIDX)
+	env := s.registry.get(api.LUA_GLOBALS_RIDX) //默认环境为"_G"全局表
 	return s.LoadWithEnv(chunk, chunckName, mode, env)
 }
 
@@ -656,7 +735,7 @@ func (s *luaState) PushGoFunction(gf api.GoFunc, n int) {
 	gc := newGoClosure(gf, n)
 	for i := 0; i < n; i++ {
 		val := s.stack.pop()
-		gc.upvals[n-i-1] = upvalue{&val}
+		gc.upvals[n-i-1] = upvalue{&val} //捕获变量
 	}
 	s.stack.push(gc)
 }

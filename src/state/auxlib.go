@@ -47,6 +47,18 @@ func (s *luaState) CheckType(arg int, t api.LuaValueType) {
 	}
 }
 
+func (s *luaState) CheckNumber(idx int) bool {
+	_, ok := s.ToIntegerX(idx)
+	if ok {
+		return true
+	}
+	_, ok = s.ToFloatX(idx)
+	if ok {
+		return true
+	}
+	return false
+}
+
 func (s *luaState) CheckInteger(arg int) int64 {
 	i, ok := s.ToIntegerX(arg)
 	if !ok {
@@ -258,10 +270,14 @@ func (s *luaState) CallMeta(obj int, e string) bool {
 
 func (s *luaState) OpenLibs() {
 	libs := map[string]api.GoFunc{
-		"_G": stdlib.OpenBaseLib,
+		"_G":     stdlib.OpenBaseLib,
+		"math":   stdlib.OpenMathLib,
+		"table":  stdlib.OpenTableLib,
+		"string": stdlib.OpenStringLib,
+		"os":     stdlib.OpenOsLib,
 	}
 	for lib, funcs := range libs {
-		s.RequireF(lib, funcs, true)
+		s.RequireF(lib, funcs, true) //golbal==true,即所有库都会加入全局表'_G'中
 		s.Pop(1)
 	}
 }
@@ -273,14 +289,14 @@ func (s *luaState) OpenLibs() {
 func (s *luaState) RequireF(modname string, openf api.GoFunc, glb bool) {
 	s.GetSubTable(api.LUA_REGISTRY_INDEX, "_LOADED") //获取所有已加载的库
 	s.GetField(api.LUA_REGISTRY_INDEX, modname)      //尝试获取modename的库
-	//如果GetField成功,即存在modname对应的键值,则ToBoolean应返回true
-	if !s.ToBoolean(0) {
-		s.Pop(1) //弹出field
+	//如果GetField成功,即存在modname对应的键值;反之没有get成功栈顶则为nil,则需要加载该模块
+	if s.IsNil(0) {
+		s.Pop(1) //弹出nil
 		s.PushGoFunction(openf, 0)
 		s.PushString(modname)   //作为唯一参数
 		s.Call(1, 1)            //调用openf库加载方法并要获取唯一返回值于栈顶(luatable)
-		s.PushValue(0)          //复制一份openf的返回值,后续global绑定需要
-		s.SetField(-2, modname) //注册进"_LOADED"
+		s.PushValue(0)          //复制一份openf的返回值
+		s.SetField(-2, modname) //将[modname,openf的返回值]注册进"_LOADED",执行后栈上由于上面复制了一份openf的返回值所以还剩下["_LOADED",openf返回值]
 	}
 	s.Remove(-1) //移除"_LOADED"table，此时栈上只剩openf的返回值
 

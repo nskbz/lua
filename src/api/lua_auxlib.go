@@ -6,18 +6,18 @@ type FuncReg map[string]GoFunc
 type AuxLib interface {
 	/* Error-report functions */
 	Error2(fmt string, a ...interface{}) int //压入fmt格式串错误信息并触发panic,方法不会返回
-	ArgError(arg int, extraMsg string) int   //方法调用时参数错误,方法不会返回
+	ArgError(idx int, extraMsg string) int   //方法调用时参数错误,方法不会返回
 	/* Argument check functions */
 	//CheckStack2(n int, msg string)
-	ArgCheck(cond bool, arg int, extraMsg string) //检查cond是否为true。如果不是则抛出带有标准消息的错误
-	CheckAny(arg int)                             //检查方法第arg个参数是否为LuaValueType
-	CheckType(arg int, t LuaValueType)            //检查方法第arg个参数是否为指定的LuaValueType
-	CheckInteger(arg int) int64                   //检查方法第arg个参数是否能转换为整型,能转换则返回转换的整型,不能则ArgError
-	CheckFloat(arg int) float64                   //检查方法第arg个参数是否能转换为浮点型,能转换则返回转换的浮点型,不能则ArgError
-	CheckString(arg int) string                   //检查方法第arg个参数是否能转换为字符串,能转换则返回转换的字符串,不能则ArgError
-	OptInteger(arg int, d int64) int64            //如果函数参数arg是整数（或可转换为整数），则返回该整数。如果此参数不存在或为nil，则返回d。否则，引发错误。
-	OptFloat(arg int, d float64) float64          //如果函数参数arg是整数（或可转换为浮点数），则返回该浮点数。如果此参数不存在或为nil，则返回d。否则，引发错误。
-	OptString(arg int, d string) string           //如果函数参数arg是字符串（或可转换为整数），则返回该字符串。如果此参数不存在或为nil，则返回d。否则，引发错误。
+	ArgCheck(cond bool, idx int, extraMsg string) //检查cond是否为true。如果不是则抛出带有标准消息的错误
+	CheckAny(idx int)                             //检查R(idx)是否为LuaValueType
+	CheckType(idx int, t LuaValueType)            //检查R(idx)是否为指定的LuaValueType
+	CheckInteger(idx int) int64                   //检查R(idx)是否能转换为整型,能转换则返回转换的整型,不能则ArgError
+	CheckFloat(idx int) float64                   //检查R(idx)是否能转换为浮点型,能转换则返回转换的浮点型,不能则ArgError
+	CheckString(idx int) string                   //检查R(idx)是否能转换为字符串,能转换则返回转换的字符串,不能则ArgError
+	OptInteger(idx int, d int64) int64            //如果R(idx)是整数（或可转换为整数），则返回该整数。如果此参数不存在或为nil，则返回d。否则，引发错误。
+	OptFloat(idx int, d float64) float64          //如果R(idx)是整数（或可转换为浮点数），则返回该浮点数。如果此参数不存在或为nil，则返回d。否则，引发错误。
+	OptString(idx int, d string) string           //如果R(idx)是字符串（或可转换为整数），则返回该字符串。如果此参数不存在或为nil，则返回d。否则，引发错误。
 	/* Load functions */
 	DoFile(filename string) bool         //加载并运行给定的文件。如果没有错误则返回false；反之返回true
 	LoadFile(filename string) int        //实质为LoadFileX但提供空mode

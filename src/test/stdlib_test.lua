@@ -53,7 +53,7 @@ print("pow结果:", func()) --输出: 6.25
 
 print("enter lua txt:")
 local func ,err = loadfile()
-if err != nil then
+if err ~= nil then
     print(err)
 else
     func()
@@ -69,7 +69,7 @@ func()
 
 print("enter lua txt:")
 local func ,err = dofile()
-if err != nil then
+if err ~= nil then
     print(err)
 else
     func()

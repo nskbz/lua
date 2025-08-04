@@ -59,6 +59,7 @@ func _finishPrefixExp(l *lexer.Lexer, exp ast.Exp) ast.Exp {
 					Line: l.Line(),
 					Str:  key.Val(),
 				},
+				HasColon: true,
 			}
 		} else if l.CheckToken(lexer.TOKEN_SEP_LPAREN) { // myfunc ("hello")
 			exp = _parseStandardFuncCallExp(l, exp)

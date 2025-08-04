@@ -118,6 +118,7 @@ type BasicAPI interface {
 	PushInteger(n int64)
 	PushFloat(n float64)
 	PushString(s string)
+	PushBasic(v interface{}) //v==bool,int64,float64,string,nil
 
 	/*
 	*	栈元素访问
@@ -157,14 +158,17 @@ type BasicAPI interface {
 	*	表相关操作
 	 */
 
-	NewTable()                               //等同CreateTable(0,0)
-	CreateTable(nArr, nPair int)             //创建table并将其压入栈顶
-	GetTable(idx int) LuaValueType           //获取指定idx对应table的(stack[top])索引值类型并将其值压入栈(table=stack[idx])：table[stack[top]] ;该方法会弹出一个元素
-	GetField(idx int, k string) LuaValueType //获取指定idx的table和指定字符串键的值类型并将其值压入栈：table[k]
-	GetI(idx int, i int64) LuaValueType      //获取指定idx的table和指定整数键的值类型并将其值压入栈：table[i]
-	SetTable(idx int)                        //设置指定idx的table的键值(table=stack[idx])：table[key]=val (val=stack[top],key=stack[top--]) ;该方法会弹出两个元素
-	SetField(idx int, k string)              //设置指定idx的table和指定字符串键的值：table[k]=val (val=stack[top])
-	SetI(idx int, i int64)                   //设置指定idx的table和指定整数键的值：table[i]=val (val=stack[top])
+	NewTable()                                                  //等同CreateTable(0,0)
+	CreateTable(nArr, nPair int)                                //创建table并将其压入栈顶
+	GetTable(idx int) LuaValueType                              //获取指定idx对应table的(stack[top])索引值类型并将其值压入栈(table=stack[idx])：table[stack[top]] ;该方法会弹出一个元素
+	GetField(idx int, k string) LuaValueType                    //获取指定idx的table和指定字符串键的值类型并将其值压入栈：table[k]
+	GetI(idx int, i int64) LuaValueType                         //获取指定idx的table和指定整数键的值类型并将其值压入栈：table[i]
+	SetTable(idx int)                                           //设置指定idx的table的键值(table=stack[idx])：table[key]=val (val=stack[top],key=stack[top--]) ;该方法会弹出两个元素
+	SetField(idx int, k string)                                 //设置指定idx的table和指定字符串键的值：table[k]=val (val=stack[top],即弹出的1个元素)
+	SetI(idx int, i int64)                                      //设置指定idx的table和指定整数键的值：table[i]=val (val=stack[top])
+	RemoveI(idx int, i int64)                                   //删除指定idx的table中数组部分索引为i的值,并将删除的值压入栈顶
+	SortI(idx int, compare func(interface{}, interface{}) bool) //将指定idx的table中arr进行排序,当compare返回false时交换，true不交换
+
 	/*
 	*	函数调用
 	 */
@@ -204,7 +208,7 @@ type BasicAPI interface {
 	 */
 
 	GetMetaTable(idx int) bool //如果指定idx值具备元表则将其压入栈并返回true;若没有元表则直接返回false
-	SetMetaTable(idx int)      //将栈顶的一个值弹出作为指定idx值的元表
+	SetMetaTable(idx int)      //将栈顶的一个值弹出作为指定idx值的元表,只弹出1个值
 
 	/*
 	*	标准库支持

@@ -144,6 +144,8 @@ type TableAccessExp struct {
 	LastLine   int // line of ']'
 	PrefixExp  Exp //'.'前一个表达式
 	CurrentExp Exp //当前表达式
+
+	HasColon bool //是否存在冒号语法糖 => x.y:z(...)
 }
 
 // 函数调用表达式
