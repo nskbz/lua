@@ -300,7 +300,7 @@ func basePCall(vm api.LuaVM) int {
 	nArgs := vm.GetTop() - 1
 	status := vm.PCall(nArgs, api.LUA_MULTRET, false)
 	vm.PushBoolean(status == api.LUA_OK)
-	vm.Insert(1)
+	vm.Insert(-1)
 	return vm.GetTop()
 }
 

@@ -18,7 +18,7 @@ type luaState struct {
 
 func New() api.LuaVM {
 	r := newTable(0, 0)                         //新建注册表
-	r.put(api.LUA_GLOBALS_RIDX, newTable(0, 0)) //添加全局环境表进注册表
+	r.put(api.LUA_GLOBALS_RIDX, newTable(0, 0)) //添加全局环境表进注册表，其key=2
 
 	ls := &luaState{registry: r}
 	ls.stack = newLuaStack(api.LUA_MIN_STACK, ls)
@@ -897,11 +897,14 @@ func (s *luaState) PCall(nArgs, nResults int, hasErrhandler bool) (status int) {
 			for s.stack != caller {
 				s.popContext()
 			} //恢复至调用函数上下文
-			s.SetTop(1)       //只保留errhandler
-			s.stack.push(err) //在调用函数栈中压入err
 			if hasErrhandler {
+				s.SetTop(1)       //只保留errhandler
+				s.stack.push(err) //在调用函数栈中压入err
 				s.Call(1, api.LUA_MULTRET)
 				return
+			} else {
+				s.SetTop(0)
+				s.stack.push(err) //在调用函数栈中压入err
 			}
 		}
 	}()

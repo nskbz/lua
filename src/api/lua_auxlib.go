@@ -31,6 +31,7 @@ type AuxLib interface {
 	GetSubTable(idx int, fname string) bool      //确保获取表中的表元素。table=R(idx) and type(table[fname])==table。如果fname对应的键值是table则返回true并将其压入栈，反之类型不是table则返回false并创建table
 	GetMetafield(obj int, e string) LuaValueType //将索引为obj的对象的元表中的字段e压入堆栈，并返回压入值的类型。如果对象没有元表，或者元表没有此字段，则不推送任何内容并返回LUA_TNIL。
 	CallMeta(obj int, e string) bool             //调用元方法;如果索引obj处的对象有元表，并且这个元表有字段e，则此函数调用该字段，并将该对象作为其唯一参数。在本例中，该函数返回true并将调用返回的值压入堆栈。如果没有元表或元方法，则此函数返回false（不向堆栈上压入任何值）。
+
 	OpenLibs()
 	//确保modname模块加载
 	//如果modname不存在于包中package.loaded,则以字符串modname作为参数调用函数openf，并在包中package.loaded设置调用结果

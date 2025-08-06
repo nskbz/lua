@@ -8,6 +8,7 @@ import (
 
 	"nskbz.cn/lua/api"
 	"nskbz.cn/lua/stdlib"
+	"nskbz.cn/lua/tool"
 )
 
 /*
@@ -229,6 +230,9 @@ func (s *luaState) ToString2(idx int) string {
 // 确保获取表中的表元素。table=R(idx) and type(table[fname])==table。如果fname对应的键值是table则返回true并将其压入栈，反之类型不是table则返回false并创建table
 func (s *luaState) GetSubTable(idx int, fname string) bool {
 	idx = s.AbsIndex(idx)
+	if s.Type(idx) != api.LUAVALUE_TABLE {
+		tool.Fatal(s, fmt.Sprintf("GetSubTable error: expected table,but %s", s.TypeName2(idx)))
+	}
 	val := s.GetField(idx, fname) //压入value
 	if val == api.LUAVALUE_TABLE {
 		return true
@@ -270,11 +274,12 @@ func (s *luaState) CallMeta(obj int, e string) bool {
 
 func (s *luaState) OpenLibs() {
 	libs := map[string]api.GoFunc{
-		"_G":     stdlib.OpenBaseLib,
-		"math":   stdlib.OpenMathLib,
-		"table":  stdlib.OpenTableLib,
-		"string": stdlib.OpenStringLib,
-		"os":     stdlib.OpenOsLib,
+		"_G":      stdlib.OpenBaseLib,
+		"math":    stdlib.OpenMathLib,
+		"table":   stdlib.OpenTableLib,
+		"string":  stdlib.OpenStringLib,
+		"os":      stdlib.OpenOsLib,
+		"package": stdlib.OpenPackageLib,
 	}
 	for lib, funcs := range libs {
 		s.RequireF(lib, funcs, true) //golbal==true,即所有库都会加入全局表'_G'中
@@ -284,11 +289,12 @@ func (s *luaState) OpenLibs() {
 
 // 确保modname模块加载
 // 如果modname不存在于包中package.loaded,则以字符串modname作为参数调用函数openf，并在包中package.loaded装载模块
-// 如果glb为true，还将模块存储到全局modname中。
+// 如果glb为true，还将模块存储到全局modname中
+// 如果glb为false，则只有当前加载该模块的文件才能使用该模块
 // !!!!!该方法需要在堆栈上留下模块的副本。
 func (s *luaState) RequireF(modname string, openf api.GoFunc, glb bool) {
-	s.GetSubTable(api.LUA_REGISTRY_INDEX, "_LOADED") //获取所有已加载的库
-	s.GetField(api.LUA_REGISTRY_INDEX, modname)      //尝试获取modename的库
+	s.GetSubTable(api.LUA_REGISTRY_INDEX, api.LUA_LOADED_TABLE) //获取所有已加载的库
+	s.GetField(api.LUA_REGISTRY_INDEX, modname)                 //尝试获取modename的库
 	//如果GetField成功,即存在modname对应的键值;反之没有get成功栈顶则为nil,则需要加载该模块
 	if s.IsNil(0) {
 		s.Pop(1) //弹出nil

@@ -45,7 +45,13 @@ const (
 const LUA_MIN_STACK = 20
 const LUA_MAX_STACK = 1000000
 const LUA_REGISTRY_INDEX = -LUA_MAX_STACK - 1000
-const LUA_GLOBALS_RIDX int64 = 2 //
+const LUA_GLOBALS_RIDX int64 = 2 //全局表默认key为2放在注册表中
+
+// as a key; in the registry, for table of loaded modules
+const LUA_LOADED_TABLE = "_LOADED"
+
+// as a key; in the registry, for table of preloaded loaders
+const LUA_PRELOAD_TABLE = "_PRELOAD"
 
 const LUA_MULTRET = -1
 
