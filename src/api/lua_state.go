@@ -22,7 +22,7 @@ func (tp LuaValueType) String() string {
 		return "function"
 	case LUAVALUE_USERDATA:
 		return "userdata"
-	case LUAVALUE_THREAD:
+	case LUAVALUE_COROUTINE:
 		return "thread"
 	}
 	return "unknown"
@@ -134,7 +134,7 @@ type BasicAPI interface {
 	IsFloat(idx int) bool
 	IsString(idx int) bool
 	IsTable(idx int) bool
-	IsThread(idx int) bool
+	IsCoroutine(idx int) bool
 	IsFunction(idx int) bool
 	ToBoolean(idx int) bool     //获取指定索引的bool值
 	ToInteger(offset int) int64 //获取指定索引的int64值,idx为相对top的偏移
@@ -235,6 +235,20 @@ type BasicAPI interface {
 
 	Error() int                                        //弹出栈顶值作为错误抛出
 	PCall(nArgs, nResults int, hasErrhandler bool) int //以保护模式执行方法,调用期间如果出现panic并不会停止运行而是立马抛出异常,如果有errhandler约定stack[1]为其函数closure
+
+	/*
+	*	协程支持
+	 */
+
+	NewCoroutine() LuaState            //创建coroutine,与创建该coroutine的协程共享registry,全局表也是属于registry的所以全局变量也是共享的
+	Resume(co LuaState, nArgs int) int //恢复co的控制权
+	Yield() int                        //让出当前coroutine的控制权
+	Status() int                       //返回当前coroutine状态信息
+	IsYieldable() bool                 //当前coroutine是否能yield
+
+	PushCoroutine() bool          //将当前coroutine推入栈,并返回是否为主coroutine
+	ToCoroutine(idx int) LuaState //将指定索引的LuaValue转换为coroutine返回,如果是其他类型则返回nil
+	XMove(to LuaState, n int)     //用于两个coroutine之间移动元素,从当前coroutine弹出n个元素压入to(coroutine)中
 }
 
 type LuaState interface {

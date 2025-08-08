@@ -15,11 +15,7 @@ var osFuncs map[string]api.GoFunc = map[string]api.GoFunc{
 }
 
 func OpenOsLib(vm api.LuaVM) int {
-	vm.NewTable()
-	for k, v := range osFuncs {
-		vm.PushGoFunction(v, 0)
-		vm.SetField(-1, k)
-	}
+	vm.NewLib(osFuncs)
 	return 1
 }
 

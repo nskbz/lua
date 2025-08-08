@@ -144,6 +144,10 @@ func parseForStat(l *lexer.Lexer) ast.Stat {
 	if l.CheckToken(lexer.TOKEN_OP_ASSIGN) {
 		return _parseForNumStat(l, f.Line(), names, exps)
 	} else if l.CheckToken(lexer.TOKEN_SEP_COMMA) {
+		l.NextToken()
+		names = append(names, parseIdentifierList(l)...)
+		return _parseForInStat(l, names, exps)
+	} else if l.CheckToken(lexer.TOKEN_KW_IN) { //forIn只有一个var的情况
 		return _parseForInStat(l, names, exps)
 	}
 	panic("error parse ForStat")
@@ -182,8 +186,6 @@ func _parseForNumStat(l *lexer.Lexer, lineOfFor int, names []string, exps []ast.
 }
 
 func _parseForInStat(l *lexer.Lexer, names []string, exps []ast.Exp) ast.Stat {
-	l.AssertAndSkipToken(lexer.TOKEN_SEP_COMMA)
-	names = append(names, parseIdentifierList(l)...)
 
 	l.AssertAndSkipToken(lexer.TOKEN_KW_IN)
 

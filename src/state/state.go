@@ -14,14 +14,25 @@ import (
 type luaState struct {
 	stack    *luaStack //函数栈
 	registry *table    //注册表,也是个table
+
+	//luaState作为资源管理的集合,可以类比为进程,在其内部添加控制信息赋予其控制能力,就拥有了线程的能力
+	//LuaState与LuaThread是1对1的关系
+	coStatus int       //当前协程的状态
+	coFather *luaState //执行当前协程的父协程,注意是执行而非定义即调用resume执行该协程的协程为父协程
+	coChan   chan int  //用于控制协程的执行
 }
 
+// 该方法只会被调用一次,即作为主协程执行
 func New() api.LuaVM {
-	r := newTable(0, 0)                         //新建注册表
-	r.put(api.LUA_GLOBALS_RIDX, newTable(0, 0)) //添加全局环境表进注册表，其key=2
+	r := newTable(0, 0) //新建注册表
 
 	ls := &luaState{registry: r}
 	ls.stack = newLuaStack(api.LUA_MIN_STACK, ls)
+	ls.coStatus = api.LUA_RUNNING
+	ls.coFather = nil //主协程没有父协程
+
+	r.put(api.LUA_MAIN_COROUTING_RIDX, ls)       //将主协程放入注册表,其key=1
+	r.put(api.LUA_GLOBALS_RIDX, newTable(0, 20)) //添加全局环境表进注册表,其key=2
 	return ls
 }
 
@@ -214,8 +225,8 @@ func (s *luaState) TypeName(tp api.LuaValueType) string {
 		return "table"
 	case api.LUAVALUE_FUNCTION:
 		return "function"
-	case api.LUAVALUE_THREAD:
-		return "thread"
+	case api.LUAVALUE_COROUTINE:
+		return "coroutine"
 	}
 	return "userdata"
 }
@@ -261,7 +272,7 @@ func (s *luaState) IsTable(idx int) bool {
 	return true
 }
 
-func (s *luaState) IsThread(idx int) bool {
+func (s *luaState) IsCoroutine(idx int) bool {
 	return true
 }
 
@@ -611,7 +622,7 @@ func (s *luaState) popContext() {
 
 func (s *luaState) LoadWithEnv(chunk []byte, chunkName string, mode string, env interface{}) int {
 	if env == nil {
-		return api.LUA_ERR_ERR
+		return api.LUA_ERR_RUN
 	}
 	var proto *binchunk.Prototype
 	if binchunk.LUA_SIGNATURE == string(chunk[:4]) {
@@ -907,8 +918,108 @@ func (s *luaState) PCall(nArgs, nResults int, hasErrhandler bool) (status int) {
 				s.stack.push(err) //在调用函数栈中压入err
 			}
 		}
+		tool.Warning("\npcall status = %d\n\n", status)
 	}()
 	s.Call(nArgs, nResults)
 	status = api.LUA_OK
 	return
+}
+
+/*
+* 协程支持
+ */
+
+func (s *luaState) isMainCoroutine() bool {
+	return s.registry.get(api.LUA_MAIN_COROUTING_RIDX) == s
+}
+
+// 创建coroutine,与创建该coroutine的协程共享registry,全局表也是属于registry的所以全局变量也是共享的
+func (s *luaState) NewCoroutine() api.LuaState {
+	ls := &luaState{registry: s.registry}
+	ls.stack = newLuaStack(api.LUA_MIN_STACK, ls)
+	ls.coStatus = api.LUA_SUSPENDED //新创建的coroutine初始状态为挂起
+	s.stack.push(ls)                //将新创建的coroutine压入栈
+	return ls
+}
+
+// 将当前coroutine推入栈,并返回是否为主coroutine
+func (s *luaState) PushCoroutine() bool {
+	s.stack.push(s)
+	return s.isMainCoroutine()
+}
+
+// 将指定索引的LuaValue转换为coroutine返回,如果是其他类型则返回nil
+func (s *luaState) ToCoroutine(idx int) api.LuaState {
+	absIdx := s.AbsIndex(idx)
+	val := s.stack.get(absIdx)
+	if typeOf(val) != api.LUAVALUE_COROUTINE {
+		return nil
+	}
+	ls, ok := val.(*luaState)
+	if !ok {
+		tool.Fatal(s, fmt.Sprintf("%v convert to luaState error!", ls))
+	}
+	return ls
+}
+
+// 从当前coroutine弹出n个元素压入to(coroutine)中
+func (s *luaState) XMove(to api.LuaState, n int) {
+	if n < 0 {
+		tool.Error("n must over 0!")
+	} else if n == 0 {
+		return
+	}
+	values := s.stack.popN(n)
+	to.(*luaState).stack.pushN(values, n)
+}
+
+func (s *luaState) IsYieldable() bool {
+	if s.isMainCoroutine() { //主协程不能yield
+		return false
+	}
+	return s.coStatus == api.LUA_RUNNING
+}
+
+// 获取当前协程状态
+func (s *luaState) Status() int {
+	return s.coStatus
+}
+
+// 启动或恢复一个协程的控制权,当前协程会被挂起
+// co：要恢复的协程（由 coroutine.create 创建）
+// nArgs: 参数个数
+func (s *luaState) Resume(co api.LuaState, nArgs int) int {
+	pending := co.(*luaState)
+	if s.coChan == nil {
+		s.coChan = make(chan int)
+	}
+
+	//首次执行,args应当压入待执行coroutine的函数栈中
+	if pending.coChan == nil {
+		pending.coChan = make(chan int)
+		pending.coFather = s //当前协程应当为父协程
+		go func() {
+			pending.coStatus = api.LUA_RUNNING
+			pending.coStatus = pending.PCall(nArgs, api.LUA_MULTRET, false)
+			//fmt.Println(pending.coStatus)
+			s.coChan <- pending.coStatus //通知父协程执行完毕
+		}()
+	} else {
+		//非首次执行
+		pending.coStatus = api.LUA_RUNNING
+		pending.coChan <- api.LUA_OK //唤醒pending协程
+	}
+
+	s.coStatus = api.LUA_NORMAL
+	status := <-s.coChan //yeild唤醒;方法调用完唤醒
+	s.coStatus = api.LUA_RUNNING
+	return status
+}
+
+// Yield implements api.LuaVM.
+func (s *luaState) Yield() int {
+	s.coStatus = api.LUA_SUSPENDED
+	s.coFather.coChan <- s.coStatus //唤醒父协程
+	<-s.coChan
+	return s.GetTop() //yield返回值个数
 }

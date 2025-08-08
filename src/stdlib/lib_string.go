@@ -13,11 +13,7 @@ var stringFuncs map[string]api.GoFunc = map[string]api.GoFunc{
 }
 
 func OpenStringLib(vm api.LuaVM) int {
-	vm.NewTable()
-	for k, v := range stringFuncs {
-		vm.PushGoFunction(v, 0)
-		vm.SetField(-1, k)
-	}
+	vm.NewLib(stringFuncs)
 	//设置元表以支持 'string':len() 语法
 	vm.NewTable()    //创建元表
 	vm.PushValue(-1) //stringFuncs table

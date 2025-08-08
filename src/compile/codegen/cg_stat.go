@@ -316,7 +316,20 @@ func cgLocalVarStat(fi *funcInfo, stat ast.Stat, scopeLastLine int) {
 	localValStat := stat.(*ast.LocalVarStat)
 	nVars := len(localValStat.LocalVarList)
 	nExps := len(localValStat.ExpList)
-	oldUsed := fi.usedRegs
+
+	oldUsed := fi.usedRegs //记录第一个变量的位置
+
+	//依次绑定变量，使得一个Var对应一个Exp，上面只是开辟了寄存器空间并没有绑定
+	//如果最后申请的寄存器空间个数小于变量数，后续多出来的变量则赋值为nil
+	for _, v := range localValStat.LocalVarList {
+		fi.newLocalVar(v, localValStat.LastLine, scopeLastLine)
+	}
+	varUsed := fi.usedRegs //记录所有变量分配完后的位置
+
+	//上面只是依次预先分配了变量的位置,后续需要表达式的生成才能赋值于变量;
+	//而表达式生成需要知道对应变量的idx,所以将usedRegs还原至分配给第一个变量的位置,后续的表达式依次生成
+	fi.usedRegs = oldUsed
+
 	//当nVars==nExps时，一个Var对应一个Exp
 	if nVars == nExps {
 		for _, exp := range localValStat.ExpList {
@@ -339,13 +352,13 @@ func cgLocalVarStat(fi *funcInfo, stat ast.Stat, scopeLastLine int) {
 			//最后一个表达式为vararg或funcCall时
 			if i == nExps-1 && _isVarargOrFuncCall(exp) {
 				multRet = true
-				n := nVars - nExps + 1 //因为最后一个表达式会被使用,则所缺的值又会多一个,所以需要的返回值数量要+1
+				n := nVars - nExps + 1 //因为最后一个表达式会被使用并不能作为值,则所缺的值又会多一个,所以需要的返回值数量要+1
 				cgExp(fi, exp, idx, n)
 			} else {
 				cgExp(fi, exp, idx, 1)
 			}
 		}
-		//不足nVars的变量且没有vararg或funcCall这种多个返回值的，就需填充nil
+		//不足nVars的变量且没有vararg或funcCall这种多个返回值的，即是所一个exp对应一个var，多于的var就需填充nil
 		if !multRet {
 			n := nVars - nExps
 			idx := fi.allocRegs(n)
@@ -354,12 +367,11 @@ func cgLocalVarStat(fi *funcInfo, stat ast.Stat, scopeLastLine int) {
 		}
 	}
 
-	//依次绑定变量，使得一个Var对应一个Exp，上面只是开辟了寄存器空间并没有绑定
-	//如果最后申请的寄存器空间个数小于变量数，后续多出来的变量则赋值为nil
-	fi.usedRegs = oldUsed
-	for _, v := range localValStat.LocalVarList {
-		fi.newLocalVar(v, localValStat.LastLine, scopeLastLine)
-	}
+	//cgExp生成对应idx变量的表达式,一般情况cgExp只需要使用一个寄存器位置
+	//但如果是 funcCall | vararg 则可能使用多个寄存器位置
+	//cgExp并不会去维护usedRegs,只关心起始的idx,所以我们cgExp前使usedRegs=oldUsed
+	//但最后需要还原成varUsed,即分配完所有的变量
+	fi.usedRegs = varUsed
 
 }
 
@@ -403,8 +415,7 @@ func cgAssignStat(fi *funcInfo, stat ast.Stat) {
 			a := fi.allocReg()
 			if i == nExps-1 && _isVarargOrFuncCall(exp) {
 				multiRet = true
-				n := nVars - nExps //待验证
-				fi.allocRegs(n)
+				n := nVars - nExps + 1
 				cgExp(fi, exp, a, n)
 			} else {
 				cgExp(fi, exp, a, 1)
@@ -428,6 +439,12 @@ func cgAssignStat(fi *funcInfo, stat ast.Stat) {
 			fi.SETTABLE(tRegs[i], kRegs[i], vRegs[i])
 			fi.recordInsLine(assignStat.LastLine)
 		} else if nameExp, ok := v.(*ast.NameExp); ok {
+			//如果vRegs[i]==0则说明该var属于 funcCall | vararg 的返回值
+			//所以分配的寄存器索引应当基于多返回值变量集合的第一个变量的idx依次往后
+			if vRegs[i] == 0 && i-1 > 0 {
+				vRegs[i] = vRegs[i-1] + 1
+			}
+
 			//局部变量
 			if idx := fi.indexOfLocalVar(nameExp.Name); idx >= 0 {
 				fi.MOVE(idx, vRegs[i])

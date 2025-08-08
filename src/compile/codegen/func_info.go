@@ -33,7 +33,7 @@ type funcInfo struct {
 	usedRegs  int                 //已经使用寄存器数
 	maxRegs   int                 //用于记录该函数所需的最大寄存器数量,便于后便创建Proto
 
-	localVars []*localVarInfo          //方法域(最外层)中的所有局部变量列表,用于debug
+	localVars []*localVarInfo          //方法域中的所有局部变量列表,用于debug
 	upvalVars map[string]*upvalInfo    //方法域中的所有捕获变量
 	scope     int                      //当前作用域层级,>=0
 	scopeVars map[string]*localVarInfo //当前作用域范围内的所有局部变量

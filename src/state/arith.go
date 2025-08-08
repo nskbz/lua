@@ -11,16 +11,21 @@ type intFunc func(int64, int64) int64
 type floatFunc func(float64, float64) float64
 
 var (
-	iadd      = func(a, b int64) int64 { return a + b }
-	fadd      = func(a, b float64) float64 { return a + b }
-	isub      = func(a, b int64) int64 { return a - b }
-	fsub      = func(a, b float64) float64 { return a - b }
-	imul      = func(a, b int64) int64 { return a * b }
-	fmul      = func(a, b float64) float64 { return a * b }
-	imod      = number.IntegerMod
-	fmod      = number.FloatMod
-	pow       = math.Pow
-	div       = func(a, b float64) float64 { return a / b }
+	iadd = func(a, b int64) int64 { return a + b }
+	fadd = func(a, b float64) float64 { return a + b }
+	isub = func(a, b int64) int64 { return a - b }
+	fsub = func(a, b float64) float64 { return a - b }
+	imul = func(a, b int64) int64 { return a * b }
+	fmul = func(a, b float64) float64 { return a * b }
+	imod = number.IntegerMod
+	fmod = number.FloatMod
+	pow  = math.Pow
+	div  = func(a, b float64) float64 {
+		if b == 0 {
+			panic("The dividend cannot be zero")
+		}
+		return a / b
+	}
 	iidiv     = number.IntegerDiv
 	fidiv     = number.FloatDiv
 	and       = func(a, b int64) int64 { return a & b }

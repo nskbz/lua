@@ -274,12 +274,13 @@ func (s *luaState) CallMeta(obj int, e string) bool {
 
 func (s *luaState) OpenLibs() {
 	libs := map[string]api.GoFunc{
-		"_G":      stdlib.OpenBaseLib,
-		"math":    stdlib.OpenMathLib,
-		"table":   stdlib.OpenTableLib,
-		"string":  stdlib.OpenStringLib,
-		"os":      stdlib.OpenOsLib,
-		"package": stdlib.OpenPackageLib,
+		"_G":        stdlib.OpenBaseLib,
+		"math":      stdlib.OpenMathLib,
+		"table":     stdlib.OpenTableLib,
+		"string":    stdlib.OpenStringLib,
+		"os":        stdlib.OpenOsLib,
+		"package":   stdlib.OpenPackageLib,
+		"coroutine": stdlib.OpenCoroutineLib,
 	}
 	for lib, funcs := range libs {
 		s.RequireF(lib, funcs, true) //golbal==true,即所有库都会加入全局表'_G'中
@@ -313,6 +314,11 @@ func (s *luaState) RequireF(modname string, openf api.GoFunc, glb bool) {
 	}
 }
 
-// func (s *luaState) NewLib(l FuncReg)
-// func (s *luaState) NewLibTable(l FuncReg)
-// func (s *luaState) SetFuncs(l FuncReg, nup int)
+// 通过funcs创建一个在栈顶的模块(table)
+func (s *luaState) NewLib(funcs map[string]api.GoFunc) {
+	s.NewTable()
+	for k, v := range funcs {
+		s.PushGoFunction(v, 0)
+		s.SetField(-1, k)
+	}
+}

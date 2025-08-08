@@ -19,11 +19,7 @@ var mathFuncs map[string]api.GoFunc = map[string]api.GoFunc{
 // 被RequireF调用,带唯一参数modname,具体于该方法的函数栈stack[1]=="math"
 // 用于加载math库的方法,最后应当生成一个table于栈顶返回
 func OpenMathLib(vm api.LuaVM) int {
-	vm.NewTable()
-	for k, v := range mathFuncs {
-		vm.PushGoFunction(v, 0)
-		vm.SetField(-1, k)
-	}
+	vm.NewLib(mathFuncs)
 	return 1
 }
 

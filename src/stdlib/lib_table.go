@@ -19,11 +19,7 @@ var tableFuncs map[string]api.GoFunc = map[string]api.GoFunc{
 }
 
 func OpenTableLib(vm api.LuaVM) int {
-	vm.NewTable()
-	for k, v := range tableFuncs {
-		vm.PushGoFunction(v, 0)
-		vm.SetField(-1, k)
-	}
+	vm.NewLib(tableFuncs)
 	return 1
 }
 

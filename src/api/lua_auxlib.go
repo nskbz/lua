@@ -2,13 +2,14 @@ package api
 
 type FuncReg map[string]GoFunc
 
-// auxiliary library
+/*
+* auxiliary interface
+ */
 type AuxLib interface {
 	/* Error-report functions */
 	Error2(fmt string, a ...interface{}) int //压入fmt格式串错误信息并触发panic,方法不会返回
 	ArgError(idx int, extraMsg string) int   //方法调用时参数错误,方法不会返回
 	/* Argument check functions */
-	//CheckStack2(n int, msg string)
 	ArgCheck(cond bool, idx int, extraMsg string) //检查cond是否为true。如果不是则抛出带有标准消息的错误
 	CheckAny(idx int)                             //检查R(idx)是否为LuaValueType
 	CheckType(idx int, t LuaValueType)            //检查R(idx)是否为指定的LuaValueType
@@ -38,7 +39,6 @@ type AuxLib interface {
 	//如果glb为true，还将模块存储到全局modname中。
 	//在堆栈上留下模块的副本。
 	RequireF(modname string, openf GoFunc, glb bool)
-	// NewLib(l FuncReg)
-	// NewLibTable(l FuncReg)
-	// SetFuncs(l FuncReg, nup int)
+
+	NewLib(funcs map[string]GoFunc) //通过funcs创建一个模块(table),并将其压入栈顶
 }

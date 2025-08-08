@@ -54,12 +54,15 @@ func OpenBaseLib(vm api.LuaVM) int {
 func basePrint(vm api.LuaVM) int {
 	nArgs := vm.GetTop()
 	for i := 1; i <= nArgs; i++ {
-		if vm.IsBoolean(i) {
+		switch vm.Type(i) {
+		case api.LUAVALUE_BOOLEAN:
 			fmt.Printf("%t", vm.ToBoolean(i))
-		} else if vm.IsString(i) {
+		case api.LUAVALUE_STRING, api.LUAVALUE_NUMBER:
 			fmt.Print(vm.ToString(i))
-		} else {
-			fmt.Print(vm.TypeName(vm.Type(i)))
+		case api.LUAVALUE_COROUTINE, api.LUAVALUE_TABLE, api.LUAVALUE_FUNCTION:
+			fmt.Print(vm.TypeName2(i) + fmt.Sprintf(": %p", vm.ToPointer(i)))
+		default:
+			fmt.Print(vm.TypeName2(i))
 		}
 		if i < nArgs {
 			fmt.Print("\t")

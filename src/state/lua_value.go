@@ -54,6 +54,8 @@ func typeOf(val luaValue) api.LuaValueType {
 		return api.LUAVALUE_TABLE
 	case *closure:
 		return api.LUAVALUE_FUNCTION
+	case *luaState:
+		return api.LUAVALUE_COROUTINE
 	}
 	return api.LUAVALUE_NONE
 }
