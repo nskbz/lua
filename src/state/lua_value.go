@@ -101,6 +101,7 @@ func convertToInteger(val luaValue) (int64, bool) {
 	return 0, false
 }
 
+// 只尝试转换Number类型
 func convertToString(val luaValue) (string, bool) {
 	switch v := val.(type) {
 	case string:
@@ -145,9 +146,14 @@ func getMetaTable(target luaValue, ls *luaState) *table {
 // 从vals中依次尝试获取元方法，如若vals中都没有元方法则返回nil
 func getMetaClosure(ls *luaState, key string, vals ...luaValue) luaValue {
 	for _, v := range vals {
-		mt := getMetaTable(v, ls)
-		if mt != nil {
-			return mt.get(key)
+		switch typeOf(v) {
+		case api.LUAVALUE_STRING, api.LUAVALUE_NUMBER: //这些类型能直接转换为string类型,不应当使用元方法所以跳过
+			continue
+		default:
+			mt := getMetaTable(v, ls)
+			if mt != nil {
+				return mt.get(key)
+			}
 		}
 	}
 	return nil

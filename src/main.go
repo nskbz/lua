@@ -38,13 +38,6 @@ func main() {
 	if c { //只进行编译操作，则于stdout输出json格式
 		proto := compile.Compile(data, chunk)
 		// to do 生成可供LUA虚拟机执行的二进制文件
-		// suffix := chunk[strings.LastIndex(chunk, "."):]
-		// target := strings.Replace(chunk, suffix, ".out", 1)
-		// f, err := os.Open(target)
-		// if err != nil {
-		// 	panic(err.Error())
-		// }
-		// f.Write(proto.ToBytes())
 		protoInfo := binchunk.ProtoToProtoInfo(proto)
 		fmt.Printf("chunck file====>[%s]\n\n", chunk)
 		s, err := json.Marshal(protoInfo)
@@ -56,7 +49,7 @@ func main() {
 	}
 
 	//没有-c参数,则文件有可能是lua二进制文件,也有可能是lua源文件
-	vm := state.New()
+	vm := state.New() //Main协程才会通过new生成vm
 	vm.OpenLibs()
 	vm.LoadFile(chunk)
 	vm.Call(0, -1)
